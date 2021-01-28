@@ -71,8 +71,15 @@ func (stat WebsiteStats) calculateStats(reports []*Report, refreshInterval *time
 		stat.Total[0] = stat.Total[0] / len(reports)
 	}
 
-	// Checks if website availability is below criticalAvailability for the past shortStatsHistoryInterval
-	// Checks if website availability has recovered
+	stat.updateAlerting(refreshInterval)
+
+	return stat
+}
+
+// updateAlerting handles the alerting logic
+// Checks if website availability is below criticalAvailability for the past shortStatsHistoryInterval
+// Checks if website availability has recovered
+func (stat *WebsiteStats) updateAlerting(refreshInterval *time.Duration) {
 	switch refreshInterval {
 	case shortUIRefreshInterval:
 		if stat.websiteHasRecovered {
@@ -86,8 +93,6 @@ func (stat WebsiteStats) calculateStats(reports []*Report, refreshInterval *time
 			stat.websiteWasDown = true
 		}
 	}
-
-	return stat
 }
 
 // updateAvgMax keeps track of the avg and max of a metric
