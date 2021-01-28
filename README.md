@@ -11,7 +11,7 @@ A tool that helps you monitor a collection of websites using various metrics.
 * When availability recovers for each website.
 * We can scroll through alerts using keyboard arrows.
 
-![Website Monitor Demo](https://recordit.co/uCb22IUQ4G.gif)
+![Website Monitor Demo](demo.gif)
 ## Quickstart
 
 
