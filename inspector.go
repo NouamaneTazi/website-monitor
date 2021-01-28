@@ -135,11 +135,11 @@ func (inspector *Inspector) Do(request *http.Request) (*Response, error) {
 
 	//TODO: transport configuration
 	tr := &http.Transport{
-		// Proxy:                 http.ProxyFromEnvironment,
-		// MaxIdleConns:          100,
-		// IdleConnTimeout:       90 * time.Second,
-		// TLSHandshakeTimeout:   10 * time.Second,
-		// ExpectContinueTimeout: 1 * time.Second,
+		Proxy:                 http.ProxyFromEnvironment,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
 	tr.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
