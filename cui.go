@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ type UI struct {
 	Title      *widgets.Paragraph
 	Status     *widgets.Paragraph
 	StatsTable *widgets.Table
+	RowStats   []*widgets.SparklineGroup
 	Alerts     *widgets.List
 }
 
@@ -70,12 +70,43 @@ func (t *UI) Init() error {
 		return l
 	}()
 
+	statsNames := []string{
+		// "Status code count",
+		"Availability",
+		"DNSLookup",
+		// "TCPConnection",
+		// "TLSHandshake",
+		// "ServerProcessing",
+		"ContentTransfer",
+		// "NameLookup",
+		"Connect",
+		// "PreTransfer",
+		// "StartTransfer",
+		"Total"}
+
+	data := []float64{4, 2, 1, 6, 3, 9, 1, 4, 2, 15, 14, 9, 8, 6, 10, 13, 15, 12, 10, 5, 3, 6, 1, 7, 10, 10, 14, 13, 6}
+	var Cols []interface{}
+	for url := range urlsPollingsIntervals { //TODO: make sure we preserve urls order
+		var sls []*widgets.Sparkline
+		for _, stat := range statsNames {
+			sl := widgets.NewSparkline()
+			sl.Title = stat
+			sl.Data = data
+			sl.LineColor = ui.ColorCyan
+			sls = append(sls, sl)
+		}
+		slg := widgets.NewSparklineGroup(sls...)
+		slg.Title = url
+		t.RowStats = append(t.RowStats, slg)
+		Cols = append(Cols, ui.NewCol(1.0/float64(len(urlsPollingsIntervals)), slg))
+	}
+
 	grid := ui.NewGrid()
 	grid.SetRect(0, 3, termWidth, termHeight)
 
 	grid.Set(
-		ui.NewRow(0.6, t.StatsTable),
-		ui.NewRow(0.4, t.Alerts),
+		ui.NewRow(0.7, Cols...),
+		ui.NewRow(0.3, t.Alerts),
 	)
 
 	ui.Render(grid)
@@ -84,18 +115,17 @@ func (t *UI) Init() error {
 
 // Update updates UI widgets from UIData.
 func (t *UI) Update(data *UIData, refreshInterval *time.Duration) {
-	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data.WebsitesStatsList), refreshInterval)
+	t.Title.Text = fmt.Sprintf("Monitoring %d websites, press q to quit", len(data.WebsitesStatsList))
 	t.Status.Text = fmt.Sprintf("Last update: %v", data.LastTimestamp.Format(time.Stamp))
 
-	// Update stats table
+	// Update stats table with aggregated data
 	t.StatsTable.Rows = t.StatsTable.Rows[:1]
 	for _, stat := range data.WebsitesStatsList {
-
 		// Update stat row in table
 		t.StatsTable.Rows = append(t.StatsTable.Rows,
 			[]string{stat.url,
 				strings.Join(formatStatusCodeCount(stat.StatusCodesCount), ""),
-				strconv.FormatFloat(stat.Availability*100, 'f', 2, 64) + "%",
+				fmt.Sprintf("%.2f%%", stat.Availability*100),
 				fmt.Sprintf("%dms (%dms)", stat.DNSLookup[0], stat.DNSLookup[1]),
 				fmt.Sprintf("%dms (%dms)", stat.TCPConnection[0], stat.TCPConnection[1]),
 				fmt.Sprintf("%dms (%dms)", stat.TLSHandshake[0], stat.TLSHandshake[1]),
@@ -122,6 +152,39 @@ func (t *UI) Update(data *UIData, refreshInterval *time.Duration) {
 		}
 	}
 
+	// Update stats rows with real time raw data
+	for i, inspector := range data.inspectorsList { // iterate over urls
+		reports := inspector.reports
+		// keep only a number of reports depending on whether it's a long or short refresh
+		reports = reports[len(reports)-numOfUsefulReports(inspector.url, refreshInterval):]
+
+		sls := t.RowStats[i].Sparklines
+		sls[0].Data = []float64{}
+		sls[1].Data = []float64{}
+		sls[2].Data = []float64{}
+		sls[3].Data = []float64{}
+		sls[4].Data = []float64{}
+		var Availability int8
+		for _, report := range reports {
+			if report.StatusCode == 200 {
+				Availability = 1
+			}
+			sls[0].Data = append(sls[0].Data, float64(Availability))
+			sls[1].Data = append(sls[1].Data, float64(report.DNSLookup.Milliseconds()))
+			sls[2].Data = append(sls[2].Data, float64(report.ContentTransfer.Milliseconds()))
+			sls[3].Data = append(sls[3].Data, float64(report.Connect.Milliseconds()))
+			sls[4].Data = append(sls[4].Data, float64(report.Total.Milliseconds()))
+		}
+
+		aggstat := data.WebsitesStatsList[i]
+
+		sls[0].Title = "Availability: " + fmt.Sprintf("%.2f%%", aggstat.Availability*100)
+		sls[1].Title = "DNSLookup: " + fmt.Sprintf("%dms (max:%dms)", aggstat.DNSLookup[0], aggstat.DNSLookup[1])
+		sls[2].Title = "ContentTransfer: " + fmt.Sprintf("%dms (max:%dms)", aggstat.ContentTransfer[0], aggstat.ContentTransfer[1])
+		sls[3].Title = "Connect: " + fmt.Sprintf("%dms (max:%dms)", aggstat.Connect[0], aggstat.Connect[1])
+		sls[4].Title = "Total: " + fmt.Sprintf("%dms (max:%dms)", aggstat.Total[0], aggstat.Total[1])
+	}
+
 	// Colors table in different color depending on refreshInterval
 	switch refreshInterval {
 	case longUIRefreshInterval:
@@ -136,6 +199,9 @@ func (t *UI) Update(data *UIData, refreshInterval *time.Duration) {
 	var widgets []ui.Drawable
 	widgets = append(widgets, t.Title, t.Status, t.StatsTable, t.Alerts)
 
+	for _, col := range t.RowStats {
+		widgets = append(widgets, col)
+	}
 	ui.Render(widgets...)
 }
 

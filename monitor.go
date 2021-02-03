@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	shortUIRefreshInterval    = flag.Duration("sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
+	shortUIRefreshInterval    = flag.Duration("sui", 1*time.Second, "Short refreshing UI interval (in seconds)")
 	longUIRefreshInterval     = flag.Duration("lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
-	shortStatsHistoryInterval = flag.Duration("sstats", 10*time.Second, "Short history interval (in minutes)")
+	shortStatsHistoryInterval = flag.Duration("sstats", 20*time.Second, "Short history interval (in minutes)")
 	longStatsHistoryInterval  = flag.Duration("lstats", 60*time.Second, "Long history interval (in minutes)")
 	urlsPollingsIntervals     = make(map[string]time.Duration) // maps urls to their corresponding polling interval
 	maxHistoryPerURL          = 1 * time.Minute                // max stats history duration

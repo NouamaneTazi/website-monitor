@@ -31,14 +31,7 @@ func (stat WebsiteStats) calculateStats(reports []*Report, refreshInterval *time
 	stat.url = url
 
 	// keep only a number of reports depending on whether it's a long or short refresh
-	var usefulNumOfReports int
-	switch refreshInterval {
-	case shortUIRefreshInterval:
-		usefulNumOfReports = int(*shortStatsHistoryInterval / urlsPollingsIntervals[url])
-	case longUIRefreshInterval:
-		usefulNumOfReports = int(*longStatsHistoryInterval / urlsPollingsIntervals[url])
-	}
-	reports = reports[len(reports)-usefulNumOfReports:]
+	reports = reports[len(reports)-numOfUsefulReports(url, refreshInterval):]
 
 	// Aggregates the reports to have new stats
 	for _, report := range reports {
@@ -100,4 +93,15 @@ func updateAvgMax(metric [2]int, source time.Duration) [2]int {
 	metric[0] += int(source.Milliseconds())
 	metric[1] = int(math.Max(float64(metric[1]), float64(source.Milliseconds())))
 	return metric
+}
+
+func numOfUsefulReports(url string, refreshInterval *time.Duration) int {
+	var usefulNumOfReports int
+	switch refreshInterval {
+	case shortUIRefreshInterval:
+		usefulNumOfReports = int(*shortStatsHistoryInterval / urlsPollingsIntervals[url])
+	case longUIRefreshInterval:
+		usefulNumOfReports = int(*longStatsHistoryInterval / urlsPollingsIntervals[url])
+	}
+	return usefulNumOfReports
 }
