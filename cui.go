@@ -63,7 +63,7 @@ func (t *UI) Init() error {
 	}()
 	t.Alerts = func() *widgets.List {
 		l := widgets.NewList()
-		l.Title = "Alerts"
+		l.Title = "Alerts [Press Arrow Keys to navigate]"
 		l.Rows = []string{}
 		l.TextStyle = ui.NewStyle(ui.ColorYellow)
 		l.WrapText = true
@@ -84,7 +84,7 @@ func (t *UI) Init() error {
 
 // Update updates UI widgets from UIData.
 func (t *UI) Update(data *UIData, refreshInterval *time.Duration) {
-	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, hold q to quit", len(data.WebsitesStatsList), refreshInterval)
+	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data.WebsitesStatsList), refreshInterval)
 	t.Status.Text = fmt.Sprintf("Last update: %v", data.LastTimestamp.Format(time.Stamp))
 
 	// Update stats table

@@ -67,6 +67,7 @@ func main() {
 	shortTick := time.NewTicker(*shortUIRefreshInterval)
 
 	var counter int
+	uiEvents := termui.PollEvents()
 	for {
 		select {
 		case <-shortTick.C:
@@ -82,7 +83,7 @@ func main() {
 				termui.Render(ui.Alerts)
 			}
 
-		case e := <-termui.PollEvents():
+		case e := <-uiEvents:
 			switch e.ID {
 			case "q", "<C-c>":
 				return
