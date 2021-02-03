@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
@@ -135,8 +136,9 @@ func (inspector *Inspector) Do(request *http.Request) (*Response, error) {
 
 	//TODO: transport configuration
 	tr := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		MaxIdleConns:          100,
+		Proxy:        http.ProxyFromEnvironment,
+		MaxIdleConns: 100,
+		// MaxIdleConnsPerHost:   100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
@@ -144,6 +146,7 @@ func (inspector *Inspector) Do(request *http.Request) (*Response, error) {
 	tr.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}
+	// tr.DialContext = dialContext("tcp4")
 	client := &http.Client{Transport: tr}
 
 	res, err := client.Do(request)
@@ -198,4 +201,15 @@ func parseURL(uri string) string {
 
 func isRedirect(resp *Response) bool {
 	return resp.StatusCode > 299 && resp.StatusCode < 400
+}
+
+func dialContext(network string) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, _, addr string) (net.Conn, error) {
+		return (&net.Dialer{
+			// Timeout:   30 * time.Second,
+			KeepAlive:     30 * time.Second,
+			FallbackDelay: 2 * time.Minute,
+			DualStack:     false,
+		}).DialContext(ctx, network, addr)
+	}
 }
