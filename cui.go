@@ -84,14 +84,12 @@ func (t *UI) Init() error {
 		// "StartTransfer",
 		"Total"}
 
-	data := []float64{4, 2, 1, 6, 3, 9, 1, 4, 2, 15, 14, 9, 8, 6, 10, 13, 15, 12, 10, 5, 3, 6, 1, 7, 10, 10, 14, 13, 6}
 	var Cols []interface{}
 	for url := range urlsPollingsIntervals { //TODO: make sure we preserve urls order
 		var sls []*widgets.Sparkline
 		for _, stat := range statsNames {
 			sl := widgets.NewSparkline()
 			sl.Title = stat
-			sl.Data = data
 			sl.LineColor = ui.ColorCyan
 			sls = append(sls, sl)
 		}
