@@ -38,20 +38,25 @@ You can directly use the `go` tool to download and install the `website-monitor`
 
 
 ## Advanced Usage
-    $ website-monitor
-    $ Usage: website-monitor [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2
+```bash
+$ website-monitor
+$ Usage: website-monitor [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2
 
-    OPTIONS:
-    -lstats duration
-            Long history interval (in minutes) (default 1m0s)
-    -lui duration
-            Long refreshing UI interval (in seconds) (default 10s)
-    -sstats duration
-            Short history interval (in minutes) (default 10s)
-    -sui duration
-            Short refreshing UI interval (in seconds) (default 2s)
-
-
+OPTIONS:
+-lstats duration
+        Long history interval (in minutes) (default 1m0s)
+-lui duration
+        Long refreshing UI interval (in seconds) (default 10s)
+-sstats duration
+        Short history interval (in minutes) (default 10s)
+-sui duration
+        Short refreshing UI interval (in seconds) (default 2s)
+```
+## Testing
+To run tests run the command
+```bash
+$ go test
+```
 ## Improvements
 * Better http client configuration to make tracing more failproof.
 * Prettier widgets for stats
