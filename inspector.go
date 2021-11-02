@@ -99,7 +99,7 @@ func (inspector *Inspector) visit(url string) {
 	// Creates request
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		log.Fatalf("failed to create http request: %v", err)
+		log.Panicf("failed to create http request: %v", err)
 	}
 	// Add http tracing
 	httpTrace := &HTTPTrace{}
@@ -108,7 +108,7 @@ func (inspector *Inspector) visit(url string) {
 	// Sends http request
 	resp, err := inspector.Do(req)
 	if err != nil {
-		log.Fatalf("failed to read response: %v", err)
+		log.Panicf("failed to read response: %v", err)
 	}
 	// Reads and discard body and get timing
 	inspector.readResponseBody(req, resp)
@@ -170,7 +170,7 @@ func (inspector *Inspector) readResponseBody(req *http.Request, resp *Response) 
 	msg := "Body was replaced with this text"
 
 	if _, err := io.Copy(w, resp.Body); err != nil && w != ioutil.Discard {
-		log.Fatalf("failed to read response body: %v", err)
+		log.Panicf("failed to read response body: %v", err)
 	}
 	defer resp.Body.Close()
 	return msg
@@ -184,7 +184,7 @@ func parseURL(uri string) string {
 
 	url, err := url.Parse(uri)
 	if err != nil {
-		log.Fatalf("could not parse url %q: %v", uri, err)
+		log.Panicf("could not parse url %q: %v", uri, err)
 	}
 	if url.Scheme == "" {
 		url.Scheme = "http"
