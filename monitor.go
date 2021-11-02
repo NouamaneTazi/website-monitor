@@ -26,7 +26,6 @@ func main() {
 	// Parse urls and polling intervals and options
 	flag.Parse()
 	tail := flag.Args()
-
 	if len(tail) > 0 && len(tail)%2 == 0 {
 		for i := 0; i < len(tail); i += 2 {
 			pollingInterval, err := strconv.Atoi(tail[i+1])
@@ -59,7 +58,7 @@ func main() {
 	// Start proper UI
 	var ui UI
 	if err := ui.Init(); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to start CLI %v", err)
 	}
 	defer ui.Close()
 
