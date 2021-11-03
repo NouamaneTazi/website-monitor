@@ -100,7 +100,7 @@ func main() {
 	var ui cui.UI
 	if err := ui.Init(); err != nil {
 		// TODO: should i use log.Fatal
-		log.Fatal("Failed to start CLI %v", err)
+		log.Fatalf("Failed to start CLI %v", err)
 	}
 	defer ui.Close()
 

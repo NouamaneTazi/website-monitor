@@ -104,6 +104,7 @@ func (inspector *Inspector) StartLoop() {
 // If the response is a 30x, visit follows the redirect.
 func (inspector *Inspector) visit(url string) {
 	defer func() {
+		// print debug stack if visit panics
 		if e := recover(); e != nil {
 			log.Printf("visit %v panic: %v\n%s", inspector.Url, e, debug.Stack())
 		}
@@ -122,7 +123,7 @@ func (inspector *Inspector) visit(url string) {
 	// Sends http request
 	resp, err := inspector.Do(req)
 	if err != nil {
-		log.Panicf("failed to read response: %v", err)
+		log.Printf("failed to read response: %v", err)
 	}
 	// Reads and discard body and get timing
 	inspector.readResponseBody(req, resp)
@@ -152,7 +153,7 @@ func (inspector *Inspector) Do(request *http.Request) (*Response, error) {
 		Proxy:                 http.ProxyFromEnvironment,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second, // TODO: add these to config
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 	tr.TLSClientConfig = &tls.Config{

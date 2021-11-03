@@ -100,7 +100,7 @@ func (ht *HTTPTrace) trace() *httptrace.ClientTrace {
 		// enabled, this may be called multiple times.
 		ConnectDone: func(net, addr string, err error) {
 			if err != nil {
-				log.Panicf("unable to connect to host %v: %v", addr, err)
+				log.Printf("unable to connect to host %v: %v", addr, err)
 			}
 			ht.ConnectDone = time.Now()
 			// println("Connected to ", addr)
