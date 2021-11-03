@@ -96,7 +96,7 @@ func (t *UI) Update(data *analyze.UIData, refreshInterval time.Duration) {
 
 		// Update stat row in table
 		t.StatsTable.Rows = append(t.StatsTable.Rows,
-			[]string{stat.url,
+			[]string{stat.Url,
 				strings.Join(formatStatusCodeCount(stat.StatusCodesCount), ""),
 				strconv.FormatFloat(stat.Availability*100, 'f', 2, 64) + "%",
 				fmt.Sprintf("%dms (%dms)", stat.DNSLookup[0], stat.DNSLookup[1]),
@@ -117,10 +117,10 @@ func (t *UI) Update(data *analyze.UIData, refreshInterval time.Duration) {
 		switch refreshInterval {
 		case config.ShortUIRefreshInterval:
 			if stat.Availability < config.CriticalAvailability {
-				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.url, stat.Availability, time.Now().Format("2006-01-02 15:04:05")))
+				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.Url, stat.Availability, time.Now().Format("2006-01-02 15:04:05")))
 			}
-			if stat.websiteHasRecovered == true {
-				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.url, stat.Availability, time.Now().Format("2006-01-02 15:04:05")))
+			if stat.WebsiteHasRecovered == true {
+				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.Url, stat.Availability, time.Now().Format("2006-01-02 15:04:05")))
 			}
 		}
 	}

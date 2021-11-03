@@ -10,11 +10,11 @@ import (
 
 // WebsiteStats represents interesting metrics about a website
 type WebsiteStats struct {
-	url                 string
+	Url                 string
 	StatusCodesCount    map[int]int
 	Availability        float64
 	websiteWasDown      bool
-	websiteHasRecovered bool
+	WebsiteHasRecovered bool
 	DNSLookup           [2]int // [avg, max]
 	TCPConnection       [2]int // [avg, max]
 	TLSHandshake        [2]int // [avg, max]
@@ -31,7 +31,7 @@ type WebsiteStats struct {
 // the aggregation depends on the refresh interval (if short we keep only config.ShortStatsHistoryInterval..)
 func (stat WebsiteStats) calculateStats(reports []*inspect.Report, refreshInterval time.Duration, url string) WebsiteStats {
 	stat = WebsiteStats{StatusCodesCount: make(map[int]int), websiteWasDown: stat.websiteWasDown}
-	stat.url = url
+	stat.Url = url
 
 	// keep only a number of reports depending on whether it's a long or short refresh
 	var usefulNumOfReports int
@@ -74,23 +74,23 @@ func (stat WebsiteStats) calculateStats(reports []*inspect.Report, refreshInterv
 		stat.Total[0] = stat.Total[0] / len(reports)
 	}
 
-	stat.updateAlerting(refreshInterval)
+	stat.UpdateAlerting(refreshInterval)
 
 	return stat
 }
 
-// updateAlerting handles the alerting logic
+// UpdateAlerting handles the alerting logic
 // Checks if website availability is below config.CriticalAvailability for the past config.ShortStatsHistoryInterval
 // Checks if website availability has recovered
-func (stat *WebsiteStats) updateAlerting(refreshInterval time.Duration) {
+func (stat *WebsiteStats) UpdateAlerting(refreshInterval time.Duration) {
 	switch refreshInterval {
 	case config.ShortUIRefreshInterval:
-		if stat.websiteHasRecovered {
-			stat.websiteHasRecovered = false
+		if stat.WebsiteHasRecovered {
+			stat.WebsiteHasRecovered = false
 		}
 		if stat.websiteWasDown && stat.Availability >= config.CriticalAvailability {
 			stat.websiteWasDown = false
-			stat.websiteHasRecovered = true
+			stat.WebsiteHasRecovered = true
 		}
 		if stat.Availability < config.CriticalAvailability {
 			stat.websiteWasDown = true

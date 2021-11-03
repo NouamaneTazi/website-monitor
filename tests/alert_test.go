@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/NouamaneTazi/iseeu/internal/analyze"
 	"github.com/NouamaneTazi/iseeu/internal/config"
 )
 
@@ -35,12 +36,12 @@ func TestWebsiteStats_updateAlerting(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stat := &WebsiteStats{}
+			stat := &analyze.WebsiteStats{}
 			var got want
 			for _, av := range tt.availabilities {
 				stat.Availability = av
-				stat.updateAlerting(tt.args.refreshInterval)
-				got = append(got, alert{isDown: stat.Availability < config.CriticalAvailability, hasRecovered: stat.websiteHasRecovered})
+				stat.UpdateAlerting(tt.args.refreshInterval)
+				got = append(got, alert{isDown: stat.Availability < config.CriticalAvailability, hasRecovered: stat.WebsiteHasRecovered})
 			}
 
 			for i := 0; i < len(tt.want); i++ {
