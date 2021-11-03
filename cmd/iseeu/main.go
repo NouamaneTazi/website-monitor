@@ -92,11 +92,10 @@ func main() {
 	flag.DurationVar(&config.longStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
 	parse()
 
-	// TODO: modular code
 	// Init the inspectors, where each inspector monitors a single URL
 	inspectorsList := make([]*inspect.Inspector, 0, len(config.urlsPollingsIntervals))
 	for url, pollingInterval := range config.urlsPollingsIntervals {
-		inspector := inspect.NewInspector(inspect.URL(url), inspect.IntervalInspection(pollingInterval))
+		inspector := inspect.NewInspector(inspect.URL(url), inspect.IntervalInspection(pollingInterval, config.maxHistoryPerURL))
 		inspectorsList = append(inspectorsList, inspector)
 
 		// Init website monitoring
