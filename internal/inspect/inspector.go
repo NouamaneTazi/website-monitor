@@ -1,4 +1,4 @@
-package main
+package inspect
 
 import (
 	"context"
@@ -8,8 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptrace"
-	"net/url"
-	"strings"
 	"sync"
 	"time"
 )
@@ -59,7 +57,7 @@ func NewInspector(options ...InspectorOption) *Inspector {
 // URL sets the url to be monitored by the Inspector.
 func URL(url string) InspectorOption {
 	return func(inspector *Inspector) {
-		inspector.url = parseURL(url)
+		inspector.url = url
 	}
 }
 
@@ -133,7 +131,7 @@ func (inspector *Inspector) updateURLReports(url string, report *Report) {
 // Do sends an HTTP request and returns an HTTP response, following policy (such as redirects, cookies, auth) as configured on the client.
 func (inspector *Inspector) Do(request *http.Request) (*Response, error) {
 
-	//TODO: transport configuration
+	//TODO: transport configuration (add timeout)
 	tr := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		MaxIdleConns:          100,
@@ -174,26 +172,6 @@ func (inspector *Inspector) readResponseBody(req *http.Request, resp *Response) 
 	}
 	defer resp.Body.Close()
 	return msg
-}
-
-// parseURL reassembles the URL into a valid URL string
-func parseURL(uri string) string {
-	if !strings.Contains(uri, "://") && !strings.HasPrefix(uri, "//") {
-		uri = "//" + uri
-	}
-
-	url, err := url.Parse(uri)
-	if err != nil {
-		log.Panicf("could not parse url %q: %v", uri, err)
-	}
-	if url.Scheme == "" {
-		url.Scheme = "http"
-		if !strings.HasSuffix(url.Host, ":80") {
-			url.Scheme += "s"
-		}
-	}
-
-	return url.String()
 }
 
 func isRedirect(resp *Response) bool {
