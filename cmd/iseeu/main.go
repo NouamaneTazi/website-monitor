@@ -95,11 +95,11 @@ func main() {
 	// Init the inspectors, where each inspector monitors a single URL
 	inspectorsList := make([]*inspect.Inspector, 0, len(config.urlsPollingsIntervals))
 	for url, pollingInterval := range config.urlsPollingsIntervals {
-		inspector := inspect.NewInspector(inspect.URL(url), inspect.IntervalInspection(pollingInterval, config.maxHistoryPerURL))
+		inspector := inspect.NewInspector(url, inspect.IntervalInspection(pollingInterval, config.maxHistoryPerURL))
 		inspectorsList = append(inspectorsList, inspector)
 
 		// Init website monitoring
-		go inspector.startLoop()
+		go inspector.StartLoop()
 	}
 
 	// Init UIData
@@ -114,7 +114,7 @@ func main() {
 	defer ui.Close()
 
 	// Ticker that refreshes UI
-	shortTick := time.NewTicker(*shortUIRefreshInterval)
+	shortTick := time.NewTicker(config.shortUIRefreshInterval)
 
 	var counter int
 	uiEvents := termui.PollEvents()
@@ -123,10 +123,10 @@ func main() {
 		case <-shortTick.C:
 			counter++
 			lenRows := len(ui.Alerts.Rows)
-			if counter%int(*longUIRefreshInterval / *shortUIRefreshInterval) != 0 {
-				UpdateUI(ui, data, shortUIRefreshInterval)
+			if counter%int(config.longUIRefreshInterval/config.shortUIRefreshInterval) != 0 {
+				UpdateUI(ui, data, config.shortUIRefreshInterval)
 			} else {
-				UpdateUI(ui, data, longUIRefreshInterval)
+				UpdateUI(ui, data, config.longUIRefreshInterval)
 			}
 			if ui.Alerts.SelectedRow == lenRows-1 || counter < 2 {
 				ui.Alerts.ScrollPageDown()
@@ -162,7 +162,7 @@ func main() {
 }
 
 // UpdateUI collects data from inspectors and refreshes UI.
-func UpdateUI(ui UI, data *UIData, interval *time.Duration) {
-	data.updateData(interval)
+func UpdateUI(ui cui.UI, data *analyze.UIData, interval time.Duration) {
+	data.UpdateData(interval)
 	ui.Update(data, interval)
 }
