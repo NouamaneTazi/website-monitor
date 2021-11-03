@@ -62,15 +62,9 @@ func parseURL(uri string) string {
 	return url.String()
 }
 
-func main() {
-
-	// Parse urls and polling intervals and options
-	flag.DurationVar(&config.shortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.longUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.shortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
-	flag.DurationVar(&config.longStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
+// parse parses urls and validates command format
+func parse() {
 	flag.Parse()
-
 	tail := flag.Args()
 	if len(tail) > 0 && len(tail)%2 == 0 {
 		for i := 0; i < len(tail); i += 2 {
@@ -87,11 +81,22 @@ func main() {
 		flag.PrintDefaults() //TODO: better usage
 		log.Fatal("Urls must be provided with their respective polling intervals.")
 	}
+}
+
+func main() {
+
+	// Parse urls and polling intervals and options
+	flag.DurationVar(&config.shortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
+	flag.DurationVar(&config.longUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
+	flag.DurationVar(&config.shortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
+	flag.DurationVar(&config.longStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
+	parse()
+
 	// TODO: modular code
 	// Init the inspectors, where each inspector monitors a single URL
 	inspectorsList := make([]*inspect.Inspector, 0, len(config.urlsPollingsIntervals))
 	for url, pollingInterval := range config.urlsPollingsIntervals {
-		inspector := inspect.NewInspector(inspect.URL(url), inspect.intervalInspection(pollingInterval))
+		inspector := inspect.NewInspector(inspect.URL(url), inspect.IntervalInspection(pollingInterval))
 		inspectorsList = append(inspectorsList, inspector)
 
 		// Init website monitoring
