@@ -26,6 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NouamaneTazi/iseeu/internal/analyze"
+	"github.com/NouamaneTazi/iseeu/internal/cui"
+	"github.com/NouamaneTazi/iseeu/internal/inspect"
 	"github.com/gizak/termui/v3"
 )
 
@@ -86,9 +89,9 @@ func main() {
 	}
 	// TODO: modular code
 	// Init the inspectors, where each inspector monitors a single URL
-	inspectorsList := make([]*Inspector, 0, len(urlsPollingsIntervals))
-	for url, pollingInterval := range urlsPollingsIntervals {
-		inspector := NewInspector(URL(url), intervalInspection(pollingInterval))
+	inspectorsList := make([]*inspect.Inspector, 0, len(config.urlsPollingsIntervals))
+	for url, pollingInterval := range config.urlsPollingsIntervals {
+		inspector := inspect.NewInspector(inspect.URL(url), inspect.intervalInspection(pollingInterval))
 		inspectorsList = append(inspectorsList, inspector)
 
 		// Init website monitoring
@@ -96,10 +99,10 @@ func main() {
 	}
 
 	// Init UIData
-	data := NewUIData(inspectorsList)
+	data := analyze.NewUIData(inspectorsList)
 
 	// Start proper UI
-	var ui UI
+	var ui cui.UI
 	if err := ui.Init(); err != nil {
 		// TODO: should i use log.Fatal
 		log.Fatal("Failed to start CLI %v", err)
