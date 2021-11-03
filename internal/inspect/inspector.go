@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptrace"
+	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -88,17 +89,26 @@ func IntervalInspection(interval time.Duration, maxHistoryPerURL time.Duration) 
 /*                             MONITORING METHODS                             */
 /* -------------------------------------------------------------------------- */
 // startLoop starts monitoring loop
+
+// Startloop is a background goroutine that helps inspectors recover if they panic
 func (inspector *Inspector) StartLoop() {
 	for {
+		// visit runs until it panics (hopefully never)
+		// if that happens sleep 2 seconds in try again
 		inspector.visit(inspector.Url)
-		time.Sleep(inspector.IntervalInspection) // TODO: change time.Sleep
+		time.Sleep(inspector.IntervalInspection)
 	}
 }
 
 // visit visits a url and times the interaction.
 // If the response is a 30x, visit follows the redirect.
 func (inspector *Inspector) visit(url string) {
-	// println("Visiting", url)
+	defer func() {
+		if e := recover(); e != nil {
+			log.Printf("visit %v panic: %v\n%s", inspector.Url, e, debug.Stack())
+		}
+	}()
+	println("Visiting", url)
 
 	// Creates request
 	req, err := http.NewRequest(http.MethodGet, url, nil)
