@@ -3,6 +3,8 @@ package analyze
 import (
 	"math"
 	"time"
+
+	"github.com/NouamaneTazi/iseeu/internal/config"
 )
 
 // WebsiteStats represents interesting metrics about a website
@@ -25,25 +27,25 @@ type WebsiteStats struct {
 }
 
 // calculateStats aggregates reports coming from inspectors and returns updated website stats
-// the aggregation depends on the refresh interval (if short we keep only shortStatsHistoryInterval..)
-func (stat WebsiteStats) calculateStats(reports []*Report, refreshInterval *time.Duration, url string) WebsiteStats {
+// the aggregation depends on the refresh interval (if short we keep only config.ShortStatsHistoryInterval..)
+func (stat WebsiteStats) calculateStats(reports []*Report, refreshInterval time.Duration, url string) WebsiteStats {
 	stat = WebsiteStats{StatusCodesCount: make(map[int]int), websiteWasDown: stat.websiteWasDown}
 	stat.url = url
 
 	// keep only a number of reports depending on whether it's a long or short refresh
 	var usefulNumOfReports int
 	switch refreshInterval {
-	case shortUIRefreshInterval:
-		usefulNumOfReports = int(*shortStatsHistoryInterval / urlsPollingsIntervals[url])
-	case longUIRefreshInterval:
-		usefulNumOfReports = int(*longStatsHistoryInterval / urlsPollingsIntervals[url])
+	case config.ShortUIRefreshInterval:
+		usefulNumOfReports = int(config.ShortStatsHistoryInterval / config.UrlsPollingsIntervals[url])
+	case config.LongUIRefreshInterval:
+		usefulNumOfReports = int(config.LongStatsHistoryInterval / config.UrlsPollingsIntervals[url])
 	}
 	reports = reports[len(reports)-usefulNumOfReports:]
 
 	// Aggregates the reports to have new stats
 	for _, report := range reports {
 		stat.StatusCodesCount[report.StatusCode]++
-		// Calculate average and maximum of reports of last `shortStatsHistoryInterval` or `longStatsHistoryInterval` minutes
+		// Calculate average and maximum of reports of last `config.ShortStatsHistoryInterval` or `config.LongStatsHistoryInterval` minutes
 		stat.DNSLookup = updateAvgMax(stat.DNSLookup, report.DNSLookup)
 		stat.TCPConnection = updateAvgMax(stat.TCPConnection, report.TCPConnection)
 		stat.TLSHandshake = updateAvgMax(stat.TLSHandshake, report.TLSHandshake)
@@ -77,19 +79,19 @@ func (stat WebsiteStats) calculateStats(reports []*Report, refreshInterval *time
 }
 
 // updateAlerting handles the alerting logic
-// Checks if website availability is below criticalAvailability for the past shortStatsHistoryInterval
+// Checks if website availability is below config.CriticalAvailability for the past config.ShortStatsHistoryInterval
 // Checks if website availability has recovered
-func (stat *WebsiteStats) updateAlerting(refreshInterval *time.Duration) {
+func (stat *WebsiteStats) updateAlerting(refreshInterval time.Duration) {
 	switch refreshInterval {
-	case shortUIRefreshInterval:
+	case config.ShortUIRefreshInterval:
 		if stat.websiteHasRecovered {
 			stat.websiteHasRecovered = false
 		}
-		if stat.websiteWasDown && stat.Availability >= criticalAvailability {
+		if stat.websiteWasDown && stat.Availability >= config.CriticalAvailability {
 			stat.websiteWasDown = false
 			stat.websiteHasRecovered = true
 		}
-		if stat.Availability < criticalAvailability {
+		if stat.Availability < config.CriticalAvailability {
 			stat.websiteWasDown = true
 		}
 	}

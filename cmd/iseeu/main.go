@@ -27,20 +27,11 @@ import (
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/analyze"
+	"github.com/NouamaneTazi/iseeu/internal/config"
 	"github.com/NouamaneTazi/iseeu/internal/cui"
 	"github.com/NouamaneTazi/iseeu/internal/inspect"
 	"github.com/gizak/termui/v3"
 )
-
-var config struct {
-	shortUIRefreshInterval    time.Duration            // Short refreshing UI interval (in seconds)
-	longUIRefreshInterval     time.Duration            // Long refreshing UI interval (in seconds)
-	shortStatsHistoryInterval time.Duration            // Short history interval (in minutes)
-	longStatsHistoryInterval  time.Duration            // Long history interval (in minutes)
-	urlsPollingsIntervals     map[string]time.Duration // maps urls to their corresponding polling interval
-	maxHistoryPerURL          time.Duration            // max stats history duration
-	criticalAvailability      float32                  // availability of websites below which we show an alert
-}
 
 // parseURL reassembles the URL into a valid URL string
 func parseURL(uri string) string {
@@ -73,7 +64,7 @@ func parse() {
 				fmt.Println("Error converting polling interval to int", err)
 				os.Exit(2)
 			}
-			config.urlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
+			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2\n\n", os.Args[0])
@@ -86,16 +77,16 @@ func parse() {
 func main() {
 
 	// Parse urls and polling intervals and options
-	flag.DurationVar(&config.shortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.longUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.shortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
-	flag.DurationVar(&config.longStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
+	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
+	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
+	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
+	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
 	parse()
 
 	// Init the inspectors, where each inspector monitors a single URL
-	inspectorsList := make([]*inspect.Inspector, 0, len(config.urlsPollingsIntervals))
-	for url, pollingInterval := range config.urlsPollingsIntervals {
-		inspector := inspect.NewInspector(url, inspect.IntervalInspection(pollingInterval, config.maxHistoryPerURL))
+	inspectorsList := make([]*inspect.Inspector, 0, len(config.UrlsPollingsIntervals))
+	for url, pollingInterval := range config.UrlsPollingsIntervals {
+		inspector := inspect.NewInspector(url, inspect.IntervalInspection(pollingInterval, config.MaxHistoryPerURL))
 		inspectorsList = append(inspectorsList, inspector)
 
 		// Init website monitoring
@@ -114,7 +105,7 @@ func main() {
 	defer ui.Close()
 
 	// Ticker that refreshes UI
-	shortTick := time.NewTicker(config.shortUIRefreshInterval)
+	shortTick := time.NewTicker(config.ShortUIRefreshInterval)
 
 	var counter int
 	uiEvents := termui.PollEvents()
@@ -123,10 +114,10 @@ func main() {
 		case <-shortTick.C:
 			counter++
 			lenRows := len(ui.Alerts.Rows)
-			if counter%int(config.longUIRefreshInterval/config.shortUIRefreshInterval) != 0 {
-				UpdateUI(ui, data, config.shortUIRefreshInterval)
+			if counter%int(config.LongUIRefreshInterval/config.ShortUIRefreshInterval) != 0 {
+				UpdateUI(ui, data, config.ShortUIRefreshInterval)
 			} else {
-				UpdateUI(ui, data, config.longUIRefreshInterval)
+				UpdateUI(ui, data, config.LongUIRefreshInterval)
 			}
 			if ui.Alerts.SelectedRow == lenRows-1 || counter < 2 {
 				ui.Alerts.ScrollPageDown()

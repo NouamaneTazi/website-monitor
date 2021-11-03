@@ -6,13 +6,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NouamaneTazi/iseeu/internal/analyze"
+	"github.com/NouamaneTazi/iseeu/internal/config"
+
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 )
 
 // UI is a ui implementation of UI interface.
 type UI struct {
-	Title      *widgets.Paragraph
+	Title      *widgets.Paragraph `default?`
 	Status     *widgets.Paragraph
 	StatsTable *widgets.Table
 	Alerts     *widgets.List
@@ -20,8 +23,8 @@ type UI struct {
 
 // Init creates widgets, sets sizes and labels.
 func (t *UI) Init() error {
-	err := ui.Init()
-	if err != nil {
+
+	if err := ui.Init(); err != nil {
 		return err
 	}
 	termWidth, termHeight := ui.TerminalDimensions()
@@ -83,7 +86,7 @@ func (t *UI) Init() error {
 }
 
 // Update updates UI widgets from UIData.
-func (t *UI) Update(data *UIData, refreshInterval *time.Duration) {
+func (t *UI) Update(data *analyze.UIData, refreshInterval time.Duration) {
 	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data.WebsitesStatsList), refreshInterval)
 	t.Status.Text = fmt.Sprintf("Last update: %v", data.LastTimestamp.Format(time.Stamp))
 
@@ -109,11 +112,11 @@ func (t *UI) Update(data *UIData, refreshInterval *time.Duration) {
 			})
 
 		// Update alerts
-		// Checks if website availability is below criticalAvailability for the past shortStatsHistoryInterval
+		// Checks if website availability is below config.CriticalAvailability for the past config.ShortStatsHistoryInterval
 		// Checks if website availability has recovered
 		switch refreshInterval {
-		case shortUIRefreshInterval:
-			if stat.Availability < criticalAvailability {
+		case config.ShortUIRefreshInterval:
+			if stat.Availability < config.CriticalAvailability {
 				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.url, stat.Availability, time.Now().Format("2006-01-02 15:04:05")))
 			}
 			if stat.websiteHasRecovered == true {
@@ -124,10 +127,10 @@ func (t *UI) Update(data *UIData, refreshInterval *time.Duration) {
 
 	// Colors table in different color depending on refreshInterval
 	switch refreshInterval {
-	case longUIRefreshInterval:
+	case config.LongUIRefreshInterval:
 		t.Title.TextStyle = ui.NewStyle(ui.ColorCyan)
 		t.StatsTable.TextStyle = ui.NewStyle(ui.ColorCyan)
-	case shortUIRefreshInterval:
+	case config.ShortUIRefreshInterval:
 		t.Title.TextStyle = ui.Theme.Default
 		t.StatsTable.TextStyle = ui.Theme.Table.Text
 	}
