@@ -33,24 +33,33 @@ import (
 	"github.com/gizak/termui/v3"
 )
 
-// parseURL reassembles the URL into a valid URL string
-func parseURL(uri string) string {
-	if !strings.Contains(uri, "://") && !strings.HasPrefix(uri, "//") {
-		uri = "//" + uri
+func main() {
+
+	// Parse urls and polling intervals and options
+	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
+	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
+	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
+	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
+	parse()
+
+	// Init the inspectors, where each inspector monitors a single URL
+	inspectorsList := make([]*inspect.Inspector, 0, len(config.UrlsPollingsIntervals))
+	for url, pollingInterval := range config.UrlsPollingsIntervals {
+		inspector := inspect.NewInspector(url, inspect.IntervalInspection(pollingInterval, config.MaxHistoryPerURL))
+		inspectorsList = append(inspectorsList, inspector)
+
+		// Init website monitoring
+		go inspector.StartLoop()
 	}
 
-	url, err := url.Parse(uri)
-	if err != nil {
-		log.Panicf("could not parse url %q: %v", uri, err)
-	}
-	if url.Scheme == "" {
-		url.Scheme = "http"
-		if !strings.HasSuffix(url.Host, ":80") {
-			url.Scheme += "s"
-		}
+	if config.EnableCUI {
+		// Init UIData
+		data := analyze.NewUIData(inspectorsList)
+
+		// Starts CUI
+		handleCUI(data)
 	}
 
-	return url.String()
 }
 
 // parse parses urls and validates command format
@@ -74,33 +83,32 @@ func parse() {
 	}
 }
 
-func main() {
-
-	// Parse urls and polling intervals and options
-	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
-	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
-	parse()
-
-	// Init the inspectors, where each inspector monitors a single URL
-	inspectorsList := make([]*inspect.Inspector, 0, len(config.UrlsPollingsIntervals))
-	for url, pollingInterval := range config.UrlsPollingsIntervals {
-		inspector := inspect.NewInspector(url, inspect.IntervalInspection(pollingInterval, config.MaxHistoryPerURL))
-		inspectorsList = append(inspectorsList, inspector)
-
-		// Init website monitoring
-		go inspector.StartLoop()
+// parseURL reassembles the URL into a valid URL string
+func parseURL(uri string) string {
+	if !strings.Contains(uri, "://") && !strings.HasPrefix(uri, "//") {
+		uri = "//" + uri
 	}
 
-	// Init UIData
-	data := analyze.NewUIData(inspectorsList)
+	url, err := url.Parse(uri)
+	if err != nil {
+		log.Panicf("could not parse url %q: %v", uri, err)
+	}
+	if url.Scheme == "" {
+		url.Scheme = "http"
+		if !strings.HasSuffix(url.Host, ":80") {
+			url.Scheme += "s"
+		}
+	}
 
-	// Start proper UI
+	return url.String()
+}
+
+// handleCUI creates CUI and handles keyboardBindings
+func handleCUI(data *analyze.UIData) {
 	var ui cui.UI
 	if err := ui.Init(); err != nil {
 		// TODO: should i use log.Fatal
-		log.Fatalf("Failed to start CLI %v", err)
+		log.Fatalf("Failed to start CUI %v", err)
 	}
 	defer ui.Close()
 
@@ -149,7 +157,6 @@ func main() {
 			termui.Render(ui.Alerts)
 		}
 	}
-
 }
 
 // UpdateUI collects data from inspectors and refreshes UI.
