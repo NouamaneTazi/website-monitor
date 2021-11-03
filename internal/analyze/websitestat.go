@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
+	"github.com/NouamaneTazi/iseeu/internal/inspect"
 )
 
 // WebsiteStats represents interesting metrics about a website
@@ -28,7 +29,7 @@ type WebsiteStats struct {
 
 // calculateStats aggregates reports coming from inspectors and returns updated website stats
 // the aggregation depends on the refresh interval (if short we keep only config.ShortStatsHistoryInterval..)
-func (stat WebsiteStats) calculateStats(reports []*Report, refreshInterval time.Duration, url string) WebsiteStats {
+func (stat WebsiteStats) calculateStats(reports []*inspect.Report, refreshInterval time.Duration, url string) WebsiteStats {
 	stat = WebsiteStats{StatusCodesCount: make(map[int]int), websiteWasDown: stat.websiteWasDown}
 	stat.url = url
 

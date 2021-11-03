@@ -9,5 +9,5 @@ var (
 	LongStatsHistoryInterval  time.Duration            // Long history interval (in minutes)
 	UrlsPollingsIntervals     map[string]time.Duration // maps urls to their corresponding polling interval
 	MaxHistoryPerURL          time.Duration            // max stats history duration
-	CriticalAvailability      float32                  // availability of websites below which we show an alert
+	CriticalAvailability      float64                  // availability of websites below which we show an alert
 )
