@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptrace"
-	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -106,7 +105,8 @@ func (inspector *Inspector) visit(url string) {
 	defer func() {
 		// print debug stack if visit panics
 		if e := recover(); e != nil {
-			log.Printf("visit %v panic: %v\n%s", inspector.Url, e, debug.Stack())
+			// log.Printf("visit %v panic: %v\n%s", inspector.Url, e, debug.Stack())
+			log.Printf("visit %v panic: %v", inspector.Url, e)
 		}
 	}()
 	println("Visiting", url)
@@ -121,13 +121,17 @@ func (inspector *Inspector) visit(url string) {
 	req = req.WithContext(httptrace.WithClientTrace(context.Background(), httpTrace.trace()))
 
 	// Sends http request
-	resp, err := inspector.Do(req)
+	resp, err := inspector.do(req)
 	if err != nil {
 		log.Printf("failed to read response: %v", err)
+		resp = &Response{
+			StatusCode: 11001,
+		}
+	} else {
+		// Reads and discard body and get timing
+		inspector.readResponseBody(req, resp)
+		httpTrace.GotResponseBody = time.Now()
 	}
-	// Reads and discard body and get timing
-	inspector.readResponseBody(req, resp)
-	httpTrace.GotResponseBody = time.Now()
 
 	resp.Request = req
 	resp.Trace = httpTrace
@@ -145,8 +149,8 @@ func (inspector *Inspector) updateURLReports(url string, report *Report) {
 	inspector.Reports = append(queue, report)
 }
 
-// Do sends an HTTP request and returns an HTTP response, following policy (such as redirects, cookies, auth) as configured on the client.
-func (inspector *Inspector) Do(request *http.Request) (*Response, error) {
+// do sends an HTTP request and returns an HTTP response, following policy (such as redirects, cookies, auth) as configured on the client.
+func (inspector *Inspector) do(request *http.Request) (*Response, error) {
 
 	//TODO: transport configuration (add timeout)
 	tr := &http.Transport{
@@ -186,7 +190,7 @@ func (inspector *Inspector) readResponseBody(req *http.Request, resp *Response) 
 	msg := "Body was replaced with this text"
 
 	if _, err := io.Copy(w, resp.Body); err != nil && w != ioutil.Discard {
-		log.Panicf("failed to read response body: %v", err)
+		log.Printf("failed to read response body: %v", err)
 	}
 	defer resp.Body.Close()
 	return msg
