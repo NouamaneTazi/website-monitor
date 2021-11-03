@@ -28,25 +28,36 @@ type Report struct {
 	Total            time.Duration
 }
 
-// Inspector provides the instance for monitoring a single url at inspectionInterval
+// Inspector provides the instance for monitoring a single url at intervalInspection
 type Inspector struct {
 	// UserAgent is the User-Agent string used by HTTP requests
 	UserAgent          string
 	wg                 *sync.WaitGroup
 	lock               *sync.RWMutex
-	url                string
-	reports            []*Report
-	inspectionInterval time.Duration
+	Url                string
+	IntervalInspection time.Duration
+	Reports            []*Report
 }
 
+/* -------------------------------------------------------------------------- */
+/*                               INITIALIZATION                               */
+/* -------------------------------------------------------------------------- */
 // A InspectorOption sets an option on a Inspector.
 type InspectorOption func(*Inspector)
 
-// NewInspector creates a new Inspector instance with default configuration
-func NewInspector(options ...InspectorOption) *Inspector {
+// NewInspector creates a new Inspector instance with provided options
+func NewInspector(url string, options ...InspectorOption) *Inspector {
 	inspector := &Inspector{}
-	inspector.Init()
 
+	// set default values
+	inspector.UserAgent = "Go Website Monitor - https://github.com/NouamaneTazi/website-monitor"
+	inspector.wg = &sync.WaitGroup{}
+	inspector.lock = &sync.RWMutex{}
+	inspector.Url = url
+	inspector.IntervalInspection = 2 * time.Second
+	inspector.Reports = make([]*Report, 0)
+
+	// update default values with provided options
 	for _, f := range options {
 		f(inspector)
 	}
@@ -57,35 +68,30 @@ func NewInspector(options ...InspectorOption) *Inspector {
 // URL sets the url to be monitored by the Inspector.
 func URL(url string) InspectorOption {
 	return func(inspector *Inspector) {
-		inspector.url = url
+		inspector.Url = url
 	}
 }
 
-// intervalInspection sets the interval at which the url will be monitored.
-func intervalInspection(interval time.Duration) InspectorOption {
+// IntervalInspection sets the interval at which the url will be monitored.
+func IntervalInspection(interval time.Duration, maxHistoryPerURL time.Duration) InspectorOption {
 	return func(inspector *Inspector) {
-		inspector.inspectionInterval = interval
+		inspector.IntervalInspection = interval
 		maxNumOfReports := int(maxHistoryPerURL / interval) // TODO: this is only an estimation
-		inspector.reports = make([]*Report, 0, maxNumOfReports)
-		for i := 0; i < cap(inspector.reports); i++ {
-			inspector.reports = append(inspector.reports, &Report{})
+		inspector.Reports = make([]*Report, 0, maxNumOfReports)
+		for i := 0; i < cap(inspector.Reports); i++ {
+			inspector.Reports = append(inspector.Reports, &Report{})
 		}
 	}
 }
 
-// Init initializes the Inspector's private variables and sets default
-// configuration for the Inspector
-func (inspector *Inspector) Init() {
-	inspector.UserAgent = "Go Website Monitor - https://github.com/NouamaneTazi/website-monitor"
-	inspector.wg = &sync.WaitGroup{}
-	inspector.lock = &sync.RWMutex{}
-}
-
+/* -------------------------------------------------------------------------- */
+/*                             MONITORING METHODS                             */
+/* -------------------------------------------------------------------------- */
 // startLoop starts monitoring loop
-func (inspector *Inspector) startLoop() {
+func (inspector *Inspector) StartLoop() {
 	for {
-		inspector.visit(inspector.url)
-		time.Sleep(inspector.inspectionInterval)
+		inspector.visit(inspector.Url)
+		time.Sleep(inspector.IntervalInspection) // TODO: change time.Sleep
 	}
 }
 
@@ -123,9 +129,9 @@ func (inspector *Inspector) visit(url string) {
 // a single http request generates a single report
 // we drop reports older than maxHistoryPerURL
 func (inspector *Inspector) updateURLReports(url string, report *Report) {
-	queue := inspector.reports
+	queue := inspector.Reports
 	queue = queue[1:] // TODO: make sure we reallocate memory
-	inspector.reports = append(queue, report)
+	inspector.Reports = append(queue, report)
 }
 
 // Do sends an HTTP request and returns an HTTP response, following policy (such as redirects, cookies, auth) as configured on the client.
@@ -156,6 +162,7 @@ func (inspector *Inspector) Do(request *http.Request) (*Response, error) {
 	}, nil
 }
 
+// TODO: move to utils?
 // readResponseBody consumes the body of the response.
 // readResponseBody returns an informational message about the
 // disposition of the response body's contents.
