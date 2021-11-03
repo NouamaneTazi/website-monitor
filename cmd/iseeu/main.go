@@ -22,6 +22,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -34,8 +35,7 @@ import (
 )
 
 func main() {
-
-	// Parse urls and polling intervals and options
+	// Parse urls and polling intervals and options, and updates `config`
 	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
@@ -52,20 +52,30 @@ func main() {
 		go inspector.StartLoop()
 	}
 
+	// Wait for SIGINT (interrupt) signal.
+	shutdownChan := make(chan os.Signal, 1)
+	shutdownDoneChan := make(chan struct{})
+	signal.Notify(shutdownChan, os.Interrupt)
+	go shutdownWaiter(shutdownChan, shutdownDoneChan)
+
 	if config.EnableCUI {
 		// Init UIData
 		data := analyze.NewUIData(inspectorsList)
 
 		// Starts CUI
 		handleCUI(data)
+	} else {
+		select {}
 	}
 
 }
 
-// parse parses urls and validates command format
+// parse parses urls and validates flags
 func parse() {
 	flag.Parse()
 	tail := flag.Args()
+
+	// validates the format `URL POLLING_INTERVAL`
 	if len(tail) > 0 && len(tail)%2 == 0 {
 		for i := 0; i < len(tail); i += 2 {
 			pollingInterval, err := strconv.Atoi(tail[i+1])
@@ -73,12 +83,13 @@ func parse() {
 				fmt.Println("Error converting polling interval to int", err)
 				os.Exit(2)
 			}
+			// update config
 			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2\n\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "OPTIONS:")
-		flag.PrintDefaults() //TODO: better usage
+		flag.PrintDefaults()
 		log.Fatal("Urls must be provided with their respective polling intervals.")
 	}
 }
@@ -135,6 +146,7 @@ func handleCUI(data *analyze.UIData) {
 		case e := <-uiEvents:
 			switch e.ID {
 			case "q", "<C-c>":
+				// interrupt app gracefully
 				return
 			case "j", "<Down>":
 				ui.Alerts.ScrollDown()
@@ -163,4 +175,18 @@ func handleCUI(data *analyze.UIData) {
 func UpdateUI(ui cui.UI, data *analyze.UIData, interval time.Duration) {
 	data.UpdateData(interval)
 	ui.Update(data, interval)
+}
+
+// interruptSignalWaiter waits data from provided channels and stops scraper if shutdownChan channel receives SIGINT
+func shutdownWaiter(shutdownChan chan os.Signal, shutdownDoneChan chan struct{}) {
+	for {
+		select {
+		case <-shutdownChan:
+			log.Println("Received SIGINT, shutting down gracefully. Send again to force")
+			g.shutdown = true
+			signal.Stop(shutdownChan)
+		case <-shutdownDoneChan:
+			return
+		}
+	}
 }
