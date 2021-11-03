@@ -109,7 +109,7 @@ func (inspector *Inspector) visit(url string) {
 			log.Printf("visit %v panic: %v", inspector.Url, e)
 		}
 	}()
-	println("Visiting", url)
+	// println("Visiting", url)
 
 	// Creates request
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -123,11 +123,12 @@ func (inspector *Inspector) visit(url string) {
 	// Sends http request
 	resp, err := inspector.do(req)
 	if err != nil {
-		log.Printf("failed to read response: %v", err)
+		// log.Printf("failed to read response: %v", err)
 		resp = &Response{
 			StatusCode: 11001,
 		}
 	} else {
+		// if we got response successfully
 		// Reads and discard body and get timing
 		inspector.readResponseBody(req, resp)
 		httpTrace.GotResponseBody = time.Now()
