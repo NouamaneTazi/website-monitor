@@ -1,8 +1,8 @@
 package metrics
 
 import (
-	"log"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
@@ -16,6 +16,7 @@ type Metrics struct {
 	reportc       chan *inspect.Report
 	AggData       *AggData
 	Alert         *Alert
+	Mu            sync.Mutex
 }
 type Alert struct {
 	statuscodesc        chan int
@@ -62,19 +63,24 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 func (m *Metrics) ListenAndProcess() {
 	// every `pollingInterval` this receives a report from Inspector
 	for report := range m.reportc {
-		log.Println("reportc fired.")
-		// defines metrics url upon first report it gets
-		if m.Url == "" {
-			m.Url = report.Url
-		}
+		// log.Println("reportc fired.")
 		// update metrics data
-		m.LastTimestamp = time.Now()
-		m.AggData.update(report)
-		m.Alert.update(report)
-		log.Println("reportc done.")
+		m.update(report)
 	}
 }
-
+func (m *Metrics) update(newReport *inspect.Report) {
+	// Lock so only one goroutine at a time can access the map.
+	m.Mu.Lock()
+	defer m.Mu.Unlock()
+	// defines metrics url upon first report it gets
+	if m.Url == "" {
+		m.Url = newReport.Url
+	}
+	m.LastTimestamp = time.Now()
+	m.AggData.update(newReport)
+	m.Alert.update(newReport)
+	// log.Println("reportc done.")
+}
 func (agg *AggData) update(newReport *inspect.Report) {
 	agg.Short.update(newReport)
 	agg.Long.update(newReport)

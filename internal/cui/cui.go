@@ -2,6 +2,8 @@ package cui
 
 import (
 	"fmt"
+	"log"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +17,7 @@ import (
 
 // UI is a ui implementation of UI interface.
 type UI struct {
-	Title      *widgets.Paragraph `default?`
+	Title      *widgets.Paragraph
 	Status     *widgets.Paragraph
 	StatsTable *widgets.Table
 	Alerts     *widgets.List
@@ -48,6 +50,7 @@ func (t *UI) Init() error {
 		table.Rows = [][]string{
 			{"website",
 				"Status code count",
+				"Availability",
 				"ConnectDuration",
 				"FirstByteDuration"},
 		}
@@ -78,6 +81,19 @@ func (t *UI) Init() error {
 
 // Update updates UI widgets from UIData.
 func (t *UI) Update(data []*metrics.Metrics, refreshInterval time.Duration) {
+	// Lock so only one goroutine at a time can access the map.
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovering from panic:", r)
+			debug.PrintStack()
+
+		}
+	}()
+	for _, m := range data {
+		m.Mu.Lock()
+		defer m.Mu.Unlock()
+	}
+
 	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data), refreshInterval)
 	t.Status.Text = fmt.Sprintf("Last update: %v", data[0].LastTimestamp.Format(time.Stamp))
 
@@ -101,18 +117,6 @@ func (t *UI) Update(data []*metrics.Metrics, refreshInterval time.Duration) {
 				fmt.Sprintf("%dms (%dms)", agg.FirstByteDuration[0], agg.FirstByteDuration[1]),
 			})
 
-		// Update alerts
-		// Checks if website availability is below config.CriticalAvailability for the past config.ShortStatsHistoryInterval
-		// Checks if website availability has recovered
-		switch refreshInterval {
-		case config.WebsiteAlertInterval:
-			if stat.Alert.WebsiteWasDown {
-				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
-			}
-			if stat.Alert.WebsiteHasRecovered {
-				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
-			}
-		}
 	}
 
 	// Colors table in different color depending on refreshInterval
@@ -127,9 +131,23 @@ func (t *UI) Update(data []*metrics.Metrics, refreshInterval time.Duration) {
 
 	// Rerender widgets
 	var widgets []ui.Drawable
-	widgets = append(widgets, t.Title, t.Status, t.StatsTable, t.Alerts)
-
+	widgets = append(widgets, t.Title, t.Status, t.StatsTable)
 	ui.Render(widgets...)
+}
+
+// updateAlerts Update alerts
+// Checks if website availability is below config.CriticalAvailability for the past config.ShortStatsHistoryInterval
+// Checks if website availability has recovered
+func (t *UI) updateAlerts(data []*metrics.Metrics) {
+	for _, stat := range data {
+		if stat.Alert.WebsiteWasDown {
+			t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
+		}
+		if stat.Alert.WebsiteHasRecovered {
+			t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
+		}
+	}
+	ui.Render(t.Alerts)
 }
 
 func formatStatusCodeCount(statusCodesMap map[int]int) []string {

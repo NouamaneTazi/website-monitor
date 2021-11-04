@@ -38,7 +38,7 @@ func main() {
 	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
 	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
-	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 60*time.Second,
+	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 3*time.Second,
 		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
 	parse()
 
