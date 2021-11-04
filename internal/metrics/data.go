@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"log"
 	"math"
 	"time"
 
@@ -61,6 +62,7 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 func (m Metrics) ListenAndProcess() {
 	// every `pollingInterval` this receives a report from Inspector
 	for report := range m.reportc {
+		log.Println("reportc fired.")
 		// defines metrics url upon first report it gets
 		if m.Url == "" {
 			m.Url = report.Url
@@ -78,7 +80,7 @@ func (agg AggData) update(newReport *inspect.Report) {
 }
 func (agg IntervalAggData) update(newReport *inspect.Report) {
 	// update avg/max trackers
-	numOfReports := int(newReport.PollingInterval / agg.historyInterval)
+	numOfReports := int(agg.historyInterval / newReport.PollingInterval)
 	agg.ConnectDuration = updateAvgMax(agg.ConnectDuration, newReport.ConnectDuration, numOfReports)
 	agg.FirstByteDuration = updateAvgMax(agg.FirstByteDuration, newReport.FirstByteDuration, numOfReports)
 

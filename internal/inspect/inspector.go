@@ -68,6 +68,8 @@ func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 }
 
 func (inspector *Inspector) inspect() {
+	log.Printf("Visiting %s", inspector.url)
+
 	err := inspector.collector.Visit(inspector.url)
 	if err != nil {
 		log.Printf("Failed to visit url %s", inspector.url)

@@ -50,7 +50,7 @@ func main() {
 
 		// init metrics server for each url
 		s := metrics.NewMetrics(reportc, pollingInterval)
-		s.ListenAndProcess()
+		go s.ListenAndProcess()
 		stats = append(stats, s)
 	}
 
