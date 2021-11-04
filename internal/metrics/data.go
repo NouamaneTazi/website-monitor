@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"math"
 	"sync"
 	"time"
 
@@ -46,8 +45,8 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 
 	// Use queues to find max values in metrics
 	// Note we could use a maxheap or maximum sliding window for O(1) time complexity here
-	shortReportQueue := make([]*inspect.Report, int(config.ShortStatsHistoryInterval/pollingInterval), int(config.ShortStatsHistoryInterval/pollingInterval))
-	longReportQueue := make([]*inspect.Report, int(config.LongStatsHistoryInterval/pollingInterval), int(config.LongStatsHistoryInterval/pollingInterval))
+	shortReportQueue := make([]*inspect.Report, 0, int(config.ShortStatsHistoryInterval/pollingInterval))
+	longReportQueue := make([]*inspect.Report, 0, int(config.LongStatsHistoryInterval/pollingInterval))
 
 	return &Metrics{
 		reportc: reportc,
@@ -58,7 +57,8 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 				reportQueue:      shortReportQueue,
 				StatusCodesCount: make(map[int]int),
 			},
-			Long: &IntervalAggData{historyInterval: config.LongStatsHistoryInterval,
+			Long: &IntervalAggData{
+				historyInterval:  config.LongStatsHistoryInterval,
 				statuscodesc:     make(chan int, int(config.LongStatsHistoryInterval/pollingInterval)),
 				reportQueue:      longReportQueue,
 				StatusCodesCount: make(map[int]int)},
@@ -69,16 +69,16 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 	}
 }
 
+// ListenAndProcess listens to reports channel and process every process to extract useful metrics
 func (m *Metrics) ListenAndProcess() {
 	// every `pollingInterval` this receives a report from Inspector
 	for report := range m.reportc {
-		// log.Println("reportc fired.")
 		// update metrics data
 		m.update(report)
 	}
 }
+
 func (m *Metrics) update(newReport *inspect.Report) {
-	// Lock so only one goroutine at a time can access the map.
 	m.Mu.Lock()
 	defer m.Mu.Unlock()
 	// defines metrics url upon first report it gets
@@ -88,22 +88,55 @@ func (m *Metrics) update(newReport *inspect.Report) {
 	m.LastTimestamp = time.Now()
 	m.AggData.update(newReport)
 	m.Alert.update(newReport)
-	// log.Println("reportc done.")
 }
 func (agg *AggData) update(newReport *inspect.Report) {
-	agg.Short.update(newReport)
-	agg.Long.update(newReport)
+	agg.Short.aggregate(newReport)
+	agg.Long.aggregate(newReport)
 }
 
-// update aggregates report for the past `agg.historyInterval` interval
-func (agg *IntervalAggData) update(newReport *inspect.Report) {
-
-	// update avg/max trackers
+// aggregate aggregates report for the past `agg.historyInterval` interval
+func (agg *IntervalAggData) aggregate(newReport *inspect.Report) {
 	numOfReports := int(agg.historyInterval / newReport.PollingInterval)
-	agg.ConnectDuration = updateAvgMax(agg.ConnectDuration, newReport.ConnectDuration, agg.reportQueue, numOfReports)
-	agg.FirstByteDuration = updateAvgMax(agg.FirstByteDuration, newReport.FirstByteDuration, agg.reportQueue, numOfReports)
+
+	// update reportQueue
+	// first element will be garbage collected when enough new elements are added to the slice to cause reallocation
+	// check https://stackoverflow.com/questions/2818852/is-there-a-queue-implementation#comment103168917_26863706
+	if len(agg.reportQueue) >= numOfReports {
+		agg.reportQueue = agg.reportQueue[1:]
+	}
+	agg.reportQueue = append(agg.reportQueue, newReport)
+	// update avg/max stats
+	agg.updateAvgMax(agg.reportQueue)
 
 	// update status count
+	agg.updateStatusCount(newReport)
+
+	// update availability
+	agg.Availability = float64(agg.StatusCodesCount[200]) / float64(numOfReports)
+}
+
+// updateAvgMax keeps track of the avg and max of a metrics over past
+// TODO: try not to use a queue
+func (agg *IntervalAggData) updateAvgMax(reportQueue []*inspect.Report) {
+	numOfReports := int(agg.historyInterval / reportQueue[len(reportQueue)-1].PollingInterval)
+
+	// assuming reportQueue has been updated
+	agg.ConnectDuration, agg.FirstByteDuration = [2]int{0, 0}, [2]int{0, 0}
+	for _, report := range reportQueue {
+		// updating ConnectDuration
+		if int(report.ConnectDuration) > agg.ConnectDuration[1] {
+			agg.ConnectDuration[1] = int(report.ConnectDuration.Milliseconds())
+		}
+		agg.ConnectDuration[0] += int(report.ConnectDuration.Milliseconds()) / numOfReports
+		if int(report.FirstByteDuration) > agg.FirstByteDuration[1] {
+			agg.FirstByteDuration[1] = int(report.FirstByteDuration.Milliseconds())
+		}
+		agg.FirstByteDuration[0] += int(report.FirstByteDuration.Milliseconds()) / numOfReports
+	}
+}
+
+// updateStatusCount updates status count using `agg.statuscodesc` channel
+func (agg *IntervalAggData) updateStatusCount(newReport *inspect.Report) {
 	// only start dequeuing from channel after it becomes full
 	if len(agg.statuscodesc) == cap(agg.statuscodesc) {
 		statusCode := <-agg.statuscodesc
@@ -117,31 +150,6 @@ func (agg *IntervalAggData) update(newReport *inspect.Report) {
 	// note that statuscodesc is a buffered chan of capacity (pollingInterval / config.[...]StatsHistoryInterval)
 	agg.statuscodesc <- newReport.StatusCode
 	agg.StatusCodesCount[newReport.StatusCode]++
-
-	// update availability
-	agg.Availability = float64(agg.StatusCodesCount[200]) / float64(numOfReports)
-}
-
-// updateAvgMax keeps track of the avg and max of a metric
-func updateAvgMax(aggMetric [2]int, newMetric time.Duration, reportQueue []*inspect.Report, numOfReports int) [2]int {
-	deprMetric := reportQueue[0]
-	if deprMetric != -1 {
-		aggMetric[0] -= int(newMetric.Milliseconds()) / numOfReports
-		aggMetric[1] = max(reportQueue[1:])
-	}
-	aggMetric[0] += int(newMetric.Milliseconds()) / numOfReports
-	aggMetric[1] = int(math.Max(float64(aggMetric[1]), float64(newMetric.Milliseconds())))
-	return aggMetric
-}
-
-func max(array []int) int {
-	var max int = array[0]
-	for _, value := range array {
-		if max < value {
-			max = value
-		}
-	}
-	return max
 }
 
 // update handles the alerting logic
@@ -174,3 +182,13 @@ func (alert *Alert) update(newReport *inspect.Report) {
 		alert.WebsiteWasDown = true
 	}
 }
+
+// updateAvg keeps track of the avg of a metric
+// note: this method only uses newest and oldest metric, and doesn't need a queue
+// func updateAvgDEPRECATED(aggMetric int, newMetric time.Duration, deprMetric time.Duration, numOfReports int) int {
+// 	if deprMetric != -1 {
+// 		aggMetric -= int(newMetric.Milliseconds()) / numOfReports
+// 	}
+// 	aggMetric += int(newMetric.Milliseconds()) / numOfReports
+// 	return aggMetric
+// }
