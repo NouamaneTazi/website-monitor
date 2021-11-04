@@ -26,26 +26,22 @@ func HandleCUI(data []*metrics.Metrics) {
 
 	// Ticker that refreshes UI
 	shortTick := time.NewTicker(config.ShortUIRefreshInterval)
-	// longTick := time.NewTicker(config.LongUIRefreshInterval)
+	longTick := time.NewTicker(config.LongUIRefreshInterval)
 
 	var counter int
 	uiEvents := termui.PollEvents()
 	for {
-		// select {
-		// case <-longTick.C:
-		// 	counter++
-		// 	// ui.Update(data, config.LongUIRefreshInterval)
-		// 	if ui.Alerts.SelectedRow == len(ui.Alerts.Rows)-1 || counter < 2 {
-		// 		ui.Alerts.ScrollPageDown()
-		// 		termui.Render(ui.Alerts)
-		// 	}
-		// default:
-		// }
 		select {
-		case <-shortTick.C:
-			ui.Update(data, config.ShortUIRefreshInterval)
+		case <-longTick.C:
 			counter++
-			ui.updateAlerts(data)
+			ui.UpdateUI(data, config.LongUIRefreshInterval)
+			// if ui.Alerts.SelectedRow == len(ui.Alerts.Rows)-1 || counter < 2 {
+			// 	ui.Alerts.ScrollPageDown()
+			// 	termui.Render(ui.Alerts)
+			// }
+		case <-shortTick.C:
+			counter++
+			ui.UpdateUI(data, config.ShortUIRefreshInterval)
 			// if ui.Alerts.SelectedRow == len(ui.Alerts.Rows)-1 || counter < 2 {
 			// 	ui.Alerts.ScrollPageDown()
 			// 	termui.Render(ui.Alerts)
@@ -73,7 +69,6 @@ func HandleCUI(data []*metrics.Metrics) {
 			case "G", "<End>":
 				ui.Alerts.ScrollBottom()
 			}
-
 			termui.Render(ui.Alerts)
 		}
 	}
