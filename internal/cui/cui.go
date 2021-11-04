@@ -86,7 +86,7 @@ func (t *UI) Init() error {
 }
 
 // Update updates UI widgets from UIData.
-func (t *UI) Update(data *analyze.UIData, refreshInterval time.Duration) {
+func (t *UI) Update(data *analyze.Metrics, refreshInterval time.Duration) {
 	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data.WebsitesStatsList), refreshInterval)
 	t.Status.Text = fmt.Sprintf("Last update: %v", data.LastTimestamp.Format(time.Stamp))
 

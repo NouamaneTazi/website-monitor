@@ -1,202 +1,91 @@
 package inspect
 
 import (
-	"context"
-	"crypto/tls"
-	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"net/http/httptrace"
-	"sync"
 	"time"
+
+	"github.com/NouamaneTazi/iseeu/internal/config"
+	"github.com/gocolly/colly/v2"
 )
 
 // Report collects useful metrics from a single HTTP request made by an Inspector
 type Report struct {
-	url              string
-	StatusCode       int
-	DNSLookup        time.Duration
-	TCPConnection    time.Duration
-	TLSHandshake     time.Duration
-	ServerProcessing time.Duration
-	ContentTransfer  time.Duration
-	NameLookup       time.Duration
-	Connect          time.Duration
-	PreTransfer      time.Duration
-	StartTransfer    time.Duration
-	Total            time.Duration
+	url               string
+	StatusCode        int
+	ConnectDuration   time.Duration
+	FirstByteDuration time.Duration
 }
 
-// Inspector provides the instance for monitoring a single url at intervalInspection
+// Inspector monitors a url every polling interval
 type Inspector struct {
-	// UserAgent is the User-Agent string used by HTTP requests
-	UserAgent          string
-	wg                 *sync.WaitGroup
-	lock               *sync.RWMutex
-	Url                string
-	IntervalInspection time.Duration
-	Reports            []*Report
+	ticker    *time.Ticker     // periodic ticker
+	url       string           // current URLs
+	reportc   chan *Report     // channel used to report metrics
+	collector *colly.Collector // colly collector which sends and traces HTTP requests
 }
 
-/* -------------------------------------------------------------------------- */
-/*                               INITIALIZATION                               */
-/* -------------------------------------------------------------------------- */
-// A InspectorOption sets an option on a Inspector.
-type InspectorOption func(*Inspector)
+// create a new collector
+func newTraceCollector(responseCb colly.ResponseCallback) *colly.Collector {
+	collector := colly.NewCollector(colly.TraceHTTP(), colly.AllowURLRevisit())
+	collector.OnResponse(responseCb)
+	return collector
+}
 
-// NewInspector creates a new Inspector instance with provided options
-func NewInspector(url string, options ...InspectorOption) *Inspector {
-	inspector := &Inspector{}
+func NewInspector(url string, pollingInterval time.Duration) chan *Report {
+	// TODO: can we modify calculations so that we keep track only of last one
+	// number of reports to keep track of
+	maxNumOfReports := int(config.MaxHistoryPerURL / pollingInterval)
 
-	// set default values
-	inspector.UserAgent = "Go Website Monitor - https://github.com/NouamaneTazi/website-monitor"
-	inspector.wg = &sync.WaitGroup{}
-	inspector.lock = &sync.RWMutex{}
-	inspector.Url = url
-	inspector.IntervalInspection = 2 * time.Second
-	inspector.Reports = make([]*Report, 0)
+	reportc := make(chan *Report, maxNumOfReports)
+	// init new inspector
+	inspector := &Inspector{
+		ticker:  time.NewTicker(pollingInterval),
+		reportc: reportc,
+		url:     url,
+		collector: newTraceCollector(func(resp *colly.Response) {
+			if resp.Trace == nil {
+				log.Print("Failed to initialize trace")
+			}
+			// create report from trace
+			report := &Report{
+				url:               url,
+				StatusCode:        resp.StatusCode,
+				ConnectDuration:   resp.Trace.ConnectDuration,
+				FirstByteDuration: resp.Trace.FirstByteDuration,
+			}
 
-	// update default values with provided options
-	for _, f := range options {
-		f(inspector)
+			// send report over to metrics for further analytics
+			reportc <- report
+		}),
 	}
 
-	return inspector
+	// start monitoring
+	go inspector.start()
+	return reportc
 }
 
-// URL sets the url to be monitored by the Inspector.
-func URL(url string) InspectorOption {
-	return func(inspector *Inspector) {
-		inspector.Url = url
+func (inspector *Inspector) inspect() {
+	err := inspector.collector.Visit(inspector.url)
+	if err != nil {
+		log.Printf("Failed to visit url %s", inspector.url)
 	}
 }
 
-// IntervalInspection sets the interval at which the url will be monitored.
-func IntervalInspection(interval time.Duration, maxHistoryPerURL time.Duration) InspectorOption {
-	return func(inspector *Inspector) {
-		inspector.IntervalInspection = interval
-		maxNumOfReports := int(maxHistoryPerURL / interval) // TODO: this is only an estimation
-		inspector.Reports = make([]*Report, 0, maxNumOfReports)
-		for i := 0; i < cap(inspector.Reports); i++ {
-			inspector.Reports = append(inspector.Reports, &Report{})
-		}
-	}
-}
-
-/* -------------------------------------------------------------------------- */
-/*                             MONITORING METHODS                             */
-/* -------------------------------------------------------------------------- */
-// startLoop starts monitoring loop
-
-// Startloop is a background goroutine that helps inspectors recover if they panic
-func (inspector *Inspector) StartLoop() {
+func (inspector *Inspector) start() {
 	for {
-		// visit runs until it panics (hopefully never)
-		// if that happens sleep 2 seconds in try again
-		inspector.visit(inspector.Url)
-		time.Sleep(inspector.IntervalInspection)
-	}
-}
-
-// visit visits a url and times the interaction.
-// If the response is a 30x, visit follows the redirect.
-func (inspector *Inspector) visit(url string) {
-	defer func() {
-		// print debug stack if visit panics
-		if e := recover(); e != nil {
-			// log.Printf("visit %v panic: %v\n%s", inspector.Url, e, debug.Stack())
-			log.Printf("visit %v panic: %v", inspector.Url, e)
+		select {
+		case <-inspector.ticker.C:
+			// When the ticker fires, inspect url
+			inspector.inspect()
 		}
-	}()
-	println("Visiting", url)
-
-	// Creates request
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		log.Panicf("failed to create http request: %v", err)
 	}
-	// Add http tracing
-	httpTrace := &HTTPTrace{}
-	req = req.WithContext(httptrace.WithClientTrace(context.Background(), httpTrace.trace()))
-
-	// Sends http request
-	resp, err := inspector.do(req)
-	if err != nil {
-		// log.Printf("failed to read response: %v", err)
-		resp = &Response{
-			StatusCode: 11001,
-		}
-	} else {
-		// if we got response successfully
-		// Reads and discard body and get timing
-		inspector.readResponseBody(req, resp)
-		httpTrace.GotResponseBody = time.Now()
-	}
-
-	resp.Request = req
-	resp.Trace = httpTrace
-
-	// Update url reports
-	inspector.updateURLReports(url, resp.generateReport())
 }
 
 // updateURLReports updates URL reports with useful metrics about website
 // a single http request generates a single report
 // we drop reports older than maxHistoryPerURL
-func (inspector *Inspector) updateURLReports(url string, report *Report) {
-	queue := inspector.Reports
-	queue = queue[1:] // TODO: make sure we reallocate memory
-	inspector.Reports = append(queue, report)
-}
-
-// do sends an HTTP request and returns an HTTP response, following policy (such as redirects, cookies, auth) as configured on the client.
-func (inspector *Inspector) do(request *http.Request) (*Response, error) {
-
-	//TODO: transport configuration (add timeout)
-	tr := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second, // TODO: add these to config
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-	tr.TLSClientConfig = &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	client := &http.Client{Transport: tr}
-
-	res, err := client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Response{
-		StatusCode: res.StatusCode,
-		Headers:    &res.Header,
-		Body:       res.Body,
-	}, nil
-}
-
-// TODO: move to utils?
-// readResponseBody consumes the body of the response.
-// readResponseBody returns an informational message about the
-// disposition of the response body's contents.
-func (inspector *Inspector) readResponseBody(req *http.Request, resp *Response) string {
-	if isRedirect(resp) || req.Method == http.MethodHead {
-		return ""
-	}
-
-	w := ioutil.Discard
-	msg := "Body was replaced with this text"
-
-	if _, err := io.Copy(w, resp.Body); err != nil && w != ioutil.Discard {
-		log.Printf("failed to read response body: %v", err)
-	}
-	defer resp.Body.Close()
-	return msg
-}
-
-func isRedirect(resp *Response) bool {
-	return resp.StatusCode > 299 && resp.StatusCode < 400
-}
+// func (inspector *Inspector) updateURLReports(url string, report *Report) {
+// 	queue := inspector.Reports
+// 	queue = queue[1:] // TODO: make sure we reallocate memory
+// 	inspector.Reports = append(queue, report)
+// }

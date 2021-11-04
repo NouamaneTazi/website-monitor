@@ -22,16 +22,12 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/analyze"
 	"github.com/NouamaneTazi/iseeu/internal/config"
-	"github.com/NouamaneTazi/iseeu/internal/cui"
 	"github.com/NouamaneTazi/iseeu/internal/inspect"
-	"github.com/gizak/termui/v3"
 )
 
 func main() {
@@ -42,31 +38,20 @@ func main() {
 	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
 	parse()
 
+	// init chan which sends data to metrics
+
 	// Init the inspectors, where each inspector monitors a single URL
-	inspectorsList := make([]*inspect.Inspector, 0, len(config.UrlsPollingsIntervals))
 	for url, pollingInterval := range config.UrlsPollingsIntervals {
-		inspector := inspect.NewInspector(url, inspect.IntervalInspection(pollingInterval, config.MaxHistoryPerURL))
-		inspectorsList = append(inspectorsList, inspector)
-
-		// Init website monitoring
-		go inspector.StartLoop()
+		inspect.NewInspector(url, pollingInterval)
 	}
 
-	// Wait for SIGINT (interrupt) signal.
-	shutdownChan := make(chan os.Signal, 1)
-	shutdownDoneChan := make(chan struct{})
-	signal.Notify(shutdownChan, os.Interrupt)
-	go shutdownWaiter(shutdownChan, shutdownDoneChan)
+	// init metrics
 
-	if config.EnableCUI {
-		// Init UIData
-		data := analyze.NewUIData(inspectorsList)
+	// show metrics in UI
+	select {}
+}
 
-		// Starts CUI
-		handleCUI(data)
-	} else {
-		select {}
-	}
+func initCrawler() {
 
 }
 
@@ -112,81 +97,4 @@ func parseURL(uri string) string {
 	}
 
 	return url.String()
-}
-
-// handleCUI creates CUI and handles keyboardBindings
-func handleCUI(data *analyze.UIData) {
-	var ui cui.UI
-	if err := ui.Init(); err != nil {
-		// TODO: should i use log.Fatal
-		log.Fatalf("Failed to start CUI %v", err)
-	}
-	defer ui.Close()
-
-	// Ticker that refreshes UI
-	shortTick := time.NewTicker(config.ShortUIRefreshInterval)
-
-	var counter int
-	uiEvents := termui.PollEvents()
-	for {
-		select {
-		case <-shortTick.C:
-			counter++
-			lenRows := len(ui.Alerts.Rows)
-			if counter%int(config.LongUIRefreshInterval/config.ShortUIRefreshInterval) != 0 {
-				UpdateUI(ui, data, config.ShortUIRefreshInterval)
-			} else {
-				UpdateUI(ui, data, config.LongUIRefreshInterval)
-			}
-			if ui.Alerts.SelectedRow == lenRows-1 || counter < 2 {
-				ui.Alerts.ScrollPageDown()
-				termui.Render(ui.Alerts)
-			}
-
-		case e := <-uiEvents:
-			switch e.ID {
-			case "q", "<C-c>":
-				// interrupt app gracefully
-				return
-			case "j", "<Down>":
-				ui.Alerts.ScrollDown()
-			case "k", "<Up>":
-				ui.Alerts.ScrollUp()
-			case "<C-d>":
-				ui.Alerts.ScrollHalfPageDown()
-			case "<C-u>":
-				ui.Alerts.ScrollHalfPageUp()
-			case "<C-f>":
-				ui.Alerts.ScrollPageDown()
-			case "<C-b>":
-				ui.Alerts.ScrollPageUp()
-			case "<Home>":
-				ui.Alerts.ScrollTop()
-			case "G", "<End>":
-				ui.Alerts.ScrollBottom()
-			}
-
-			termui.Render(ui.Alerts)
-		}
-	}
-}
-
-// UpdateUI collects data from inspectors and refreshes UI.
-func UpdateUI(ui cui.UI, data *analyze.UIData, interval time.Duration) {
-	data.UpdateData(interval)
-	ui.Update(data, interval)
-}
-
-// interruptSignalWaiter waits data from provided channels and stops scraper if shutdownChan channel receives SIGINT
-func shutdownWaiter(shutdownChan chan os.Signal, shutdownDoneChan chan struct{}) {
-	for {
-		select {
-		case <-shutdownChan:
-			log.Println("Received SIGINT, shutting down gracefully. Send again to force")
-			g.shutdown = true
-			signal.Stop(shutdownChan)
-		case <-shutdownDoneChan:
-			return
-		}
-	}
 }
