@@ -140,6 +140,8 @@ func (t *UI) Update(data []*metrics.Metrics, refreshInterval time.Duration) {
 // Checks if website availability has recovered
 func (t *UI) updateAlerts(data []*metrics.Metrics) {
 	for _, stat := range data {
+		stat.Mu.Lock()
+		defer stat.Mu.Unlock()
 		if stat.Alert.WebsiteWasDown {
 			t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
 		}

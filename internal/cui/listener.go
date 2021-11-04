@@ -27,7 +27,6 @@ func HandleCUI(data []*metrics.Metrics) {
 	// Ticker that refreshes UI
 	shortTick := time.NewTicker(config.ShortUIRefreshInterval)
 	// longTick := time.NewTicker(config.LongUIRefreshInterval)
-	alertTick := time.NewTicker(config.WebsiteAlertInterval)
 
 	var counter int
 	uiEvents := termui.PollEvents()
@@ -45,13 +44,8 @@ func HandleCUI(data []*metrics.Metrics) {
 		select {
 		case <-shortTick.C:
 			ui.Update(data, config.ShortUIRefreshInterval)
-		case <-alertTick.C:
 			counter++
 			ui.updateAlerts(data)
-			log.Println("ui alerts", ui.Alerts.SelectedRow)
-			log.Println("ui alerts", ui.Alerts.SelectedRow)
-			log.Println("ui alerts", ui.Alerts.Rows)
-			termui.Render(ui.Alerts)
 			// if ui.Alerts.SelectedRow == len(ui.Alerts.Rows)-1 || counter < 2 {
 			// 	ui.Alerts.ScrollPageDown()
 			// 	termui.Render(ui.Alerts)

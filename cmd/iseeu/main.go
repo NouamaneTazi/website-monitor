@@ -36,9 +36,10 @@ func main() {
 	// Parse urls and polling intervals and options, and updates `config`
 	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
-	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
-	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 3*time.Second,
+	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short refreshes show stats for past `ShortStatsHistoryInterval` minutes")
+	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second,
+		"Long refreshes show stats for past `LongStatsHistoryInterval` minutes")
+	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 10*time.Second,
 		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
 	parse()
 

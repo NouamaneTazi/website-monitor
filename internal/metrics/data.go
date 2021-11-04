@@ -85,6 +85,8 @@ func (agg *AggData) update(newReport *inspect.Report) {
 	agg.Short.update(newReport)
 	agg.Long.update(newReport)
 }
+
+// update aggregates report for the past `agg.historyInterval` interval
 func (agg *IntervalAggData) update(newReport *inspect.Report) {
 	// update avg/max trackers
 	numOfReports := int(agg.historyInterval / newReport.PollingInterval)
@@ -117,10 +119,11 @@ func updateAvgMax(aggMetric [2]int, newMetric time.Duration, numOfReports int) [
 	return aggMetric
 }
 
-// UpdateAlerting handles the alerting logic
+// update handles the alerting logic
 // Checks if website availability is below config.CriticalAvailability for the past config.WebsiteAlertInterval
 // Checks if website availability has recovered
 func (alert *Alert) update(newReport *inspect.Report) {
+	// log.Printf("Update alerts %v", alert)
 	// update availability using alert.statuscodesc channel
 	// only start dequeuing from channel after it becomes full
 	if len(alert.statuscodesc) == cap(alert.statuscodesc) {

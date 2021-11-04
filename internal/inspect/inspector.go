@@ -72,7 +72,8 @@ func (inspector *Inspector) inspect() {
 
 	err := inspector.collector.Visit(inspector.url)
 	if err != nil {
-		log.Printf("Failed to visit url %s", inspector.url)
+		// TODO: handle this (send suiting data report)
+		log.Printf("Failed to visit url %s: %v", inspector.url, err)
 	}
 }
 
