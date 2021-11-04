@@ -10,7 +10,7 @@ import (
 
 // Metrics represents data to be passed to UI.
 type Metrics struct {
-	url           string    // the url being monitored
+	Url           string    // the url being monitored
 	LastTimestamp time.Time // last updated time stamp
 	reportc       chan *inspect.Report
 	AggData       *AggData
@@ -19,13 +19,13 @@ type Metrics struct {
 type Alert struct {
 	statuscodesc        chan int
 	Availability        float64
-	websiteWasDown      bool
+	WebsiteWasDown      bool
 	WebsiteHasRecovered bool
 }
 
 // AggData regroups the aggregated data that will be passed to UI
 type AggData struct {
-	short, long IntervalAggData
+	Short, Long *IntervalAggData
 }
 
 // IntervalAggData aggregates data over `historyInterval`
@@ -43,12 +43,12 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 	return &Metrics{
 		reportc: reportc,
 		AggData: &AggData{
-			short: IntervalAggData{
+			Short: &IntervalAggData{
 				historyInterval:  config.ShortStatsHistoryInterval,
 				statuscodesc:     make(chan int, int(pollingInterval/config.ShortStatsHistoryInterval)),
 				StatusCodesCount: make(map[int]int),
 			},
-			long: IntervalAggData{historyInterval: config.LongStatsHistoryInterval,
+			Long: &IntervalAggData{historyInterval: config.LongStatsHistoryInterval,
 				statuscodesc:     make(chan int, int(pollingInterval/config.LongStatsHistoryInterval)),
 				StatusCodesCount: make(map[int]int)},
 		},
@@ -62,8 +62,8 @@ func (m Metrics) ListenAndProcess() {
 	// every `pollingInterval` this receives a report from Inspector
 	for report := range m.reportc {
 		// defines metrics url upon first report it gets
-		if m.url == "" {
-			m.url = report.Url
+		if m.Url == "" {
+			m.Url = report.Url
 		}
 		// update metrics data
 		m.LastTimestamp = time.Now()
@@ -73,8 +73,8 @@ func (m Metrics) ListenAndProcess() {
 }
 
 func (agg AggData) update(newReport *inspect.Report) {
-	agg.short.update(newReport)
-	agg.long.update(newReport)
+	agg.Short.update(newReport)
+	agg.Long.update(newReport)
 }
 func (agg IntervalAggData) update(newReport *inspect.Report) {
 	// update avg/max trackers
@@ -124,11 +124,11 @@ func (alert Alert) update(newReport *inspect.Report) {
 	if alert.WebsiteHasRecovered {
 		alert.WebsiteHasRecovered = false
 	}
-	if alert.websiteWasDown && alert.Availability >= config.CriticalAvailability {
-		alert.websiteWasDown = false
+	if alert.WebsiteWasDown && alert.Availability >= config.CriticalAvailability {
+		alert.WebsiteWasDown = false
 		alert.WebsiteHasRecovered = true
 	}
 	if alert.Availability < config.CriticalAvailability {
-		alert.websiteWasDown = true
+		alert.WebsiteWasDown = true
 	}
 }

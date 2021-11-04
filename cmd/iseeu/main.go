@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
+	"github.com/NouamaneTazi/iseeu/internal/cui"
 	"github.com/NouamaneTazi/iseeu/internal/inspect"
 	"github.com/NouamaneTazi/iseeu/internal/metrics"
 )
@@ -41,18 +42,20 @@ func main() {
 		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
 	parse()
 
+	stats := make([]*metrics.Metrics, len(config.UrlsPollingsIntervals))
 	for url, pollingInterval := range config.UrlsPollingsIntervals {
 		// Init the inspectors, where each inspector monitors a single URL
 		// and sends back the trace report over the `reportc` channel
 		reportc := inspect.NewInspector(url, pollingInterval)
 
 		// init metrics server for each url
-		stats := metrics.NewMetrics(reportc, pollingInterval)
-		stats.ListenAndProcess()
+		s := metrics.NewMetrics(reportc, pollingInterval)
+		s.ListenAndProcess()
+		stats = append(stats, s)
 	}
 
 	// show metrics in UI
-	select {}
+	cui.HandleCUI(stats)
 }
 
 // parse parses urls and validates flags

@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
+	"github.com/NouamaneTazi/iseeu/internal/metrics"
 	"github.com/gizak/termui/v3"
 )
 
 // handleCUI creates CUI and handles keyboardBindings
-func handleCUI() {
+func HandleCUI(data []*metrics.Metrics) {
 	var ui UI
 	if err := ui.Init(); err != nil {
 		log.Fatalf("Failed to start CUI %v", err)
@@ -26,7 +27,7 @@ func handleCUI() {
 		select {
 		case <-longTick.C:
 			counter++
-			UpdateUI(ui, data, config.LongUIRefreshInterval)
+			ui.Update(data, config.LongUIRefreshInterval)
 			if ui.Alerts.SelectedRow == len(ui.Alerts.Rows)-1 || counter < 2 {
 				ui.Alerts.ScrollPageDown()
 				termui.Render(ui.Alerts)
@@ -36,9 +37,8 @@ func handleCUI() {
 		select {
 		case <-shortTick.C:
 			counter++
-			lenRows := len(ui.Alerts.Rows)
-			UpdateUI(ui, data, config.ShortUIRefreshInterval)
-			if ui.Alerts.SelectedRow == lenRows-1 || counter < 2 {
+			ui.Update(data, config.ShortUIRefreshInterval)
+			if ui.Alerts.SelectedRow == len(ui.Alerts.Rows)-1 || counter < 2 {
 				ui.Alerts.ScrollPageDown()
 				termui.Render(ui.Alerts)
 			}

@@ -77,33 +77,40 @@ func (t *UI) Init() error {
 }
 
 // Update updates UI widgets from UIData.
-func (t *UI) Update(data *metrics.Metrics, refreshInterval time.Duration) {
-	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data.WebsitesStatsList), refreshInterval)
-	t.Status.Text = fmt.Sprintf("Last update: %v", data.LastTimestamp.Format(time.Stamp))
+func (t *UI) Update(data []*metrics.Metrics, refreshInterval time.Duration) {
+	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data), refreshInterval)
+	t.Status.Text = fmt.Sprintf("Last update: %v", data[0].LastTimestamp.Format(time.Stamp))
 
 	// Update stats table
 	t.StatsTable.Rows = t.StatsTable.Rows[:1]
-	for _, stat := range data.WebsitesStatsList {
+	for _, stat := range data {
+		var agg *metrics.IntervalAggData
+		switch refreshInterval {
+		case config.ShortUIRefreshInterval:
+			agg = stat.AggData.Short
+		case config.LongUIRefreshInterval:
+			agg = stat.AggData.Long
+		}
 
 		// Update stat row in table
 		t.StatsTable.Rows = append(t.StatsTable.Rows,
 			[]string{stat.Url,
-				strings.Join(formatStatusCodeCount(stat.StatusCodesCount), ""),
-				strconv.FormatFloat(stat.Availability*100, 'f', 2, 64) + "%",
-				fmt.Sprintf("%dms (%dms)", stat.DNSLookup[0], stat.DNSLookup[1]),
-				fmt.Sprintf("%dms (%dms)", stat.TCPConnection[0], stat.TCPConnection[1]),
+				strings.Join(formatStatusCodeCount(agg.StatusCodesCount), ""),
+				strconv.FormatFloat(agg.Availability*100, 'f', 2, 64) + "%",
+				fmt.Sprintf("%dms (%dms)", agg.ConnectDuration[0], agg.ConnectDuration[1]),
+				fmt.Sprintf("%dms (%dms)", agg.FirstByteDuration[0], agg.FirstByteDuration[1]),
 			})
 
 		// Update alerts
 		// Checks if website availability is below config.CriticalAvailability for the past config.ShortStatsHistoryInterval
 		// Checks if website availability has recovered
 		switch refreshInterval {
-		case config.ShortUIRefreshInterval:
-			if stat.Availability < config.CriticalAvailability {
-				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.Url, stat.Availability, time.Now().Format("2006-01-02 15:04:05")))
+		case config.WebsiteAlertInterval:
+			if stat.Alert.WebsiteWasDown {
+				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
 			}
-			if stat.WebsiteHasRecovered == true {
-				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.Url, stat.Availability, time.Now().Format("2006-01-02 15:04:05")))
+			if stat.Alert.WebsiteHasRecovered {
+				t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
 			}
 		}
 	}
