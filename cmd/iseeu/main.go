@@ -46,7 +46,7 @@ func main() {
 	// metrics are updated over time through `ListenAndProcess()` method
 	// note: we could have used a channel of capacity one to always keep the latest metric ready
 	// but I think this is simpler and more understandable
-	stats := make([]*metrics.Metrics, len(config.UrlsPollingsIntervals))
+	stats := make([]*metrics.Metrics, 0, len(config.UrlsPollingsIntervals))
 
 	for url, pollingInterval := range config.UrlsPollingsIntervals {
 		// Init the inspectors, where each inspector monitors a single URL
