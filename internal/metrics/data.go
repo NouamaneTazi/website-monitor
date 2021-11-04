@@ -46,20 +46,20 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 		AggData: &AggData{
 			Short: &IntervalAggData{
 				historyInterval:  config.ShortStatsHistoryInterval,
-				statuscodesc:     make(chan int, int(pollingInterval/config.ShortStatsHistoryInterval)),
+				statuscodesc:     make(chan int, int(config.ShortStatsHistoryInterval/pollingInterval)),
 				StatusCodesCount: make(map[int]int),
 			},
 			Long: &IntervalAggData{historyInterval: config.LongStatsHistoryInterval,
-				statuscodesc:     make(chan int, int(pollingInterval/config.LongStatsHistoryInterval)),
+				statuscodesc:     make(chan int, int(config.LongStatsHistoryInterval/pollingInterval)),
 				StatusCodesCount: make(map[int]int)},
 		},
 		Alert: &Alert{
-			statuscodesc: make(chan int, int(pollingInterval/config.WebsiteAlertInterval)),
+			statuscodesc: make(chan int, int(config.WebsiteAlertInterval/pollingInterval)),
 		},
 	}
 }
 
-func (m Metrics) ListenAndProcess() {
+func (m *Metrics) ListenAndProcess() {
 	// every `pollingInterval` this receives a report from Inspector
 	for report := range m.reportc {
 		log.Println("reportc fired.")
@@ -71,14 +71,15 @@ func (m Metrics) ListenAndProcess() {
 		m.LastTimestamp = time.Now()
 		m.AggData.update(report)
 		m.Alert.update(report)
+		log.Println("reportc done.")
 	}
 }
 
-func (agg AggData) update(newReport *inspect.Report) {
+func (agg *AggData) update(newReport *inspect.Report) {
 	agg.Short.update(newReport)
 	agg.Long.update(newReport)
 }
-func (agg IntervalAggData) update(newReport *inspect.Report) {
+func (agg *IntervalAggData) update(newReport *inspect.Report) {
 	// update avg/max trackers
 	numOfReports := int(agg.historyInterval / newReport.PollingInterval)
 	agg.ConnectDuration = updateAvgMax(agg.ConnectDuration, newReport.ConnectDuration, numOfReports)
@@ -88,7 +89,12 @@ func (agg IntervalAggData) update(newReport *inspect.Report) {
 	// only start dequeuing from channel after it becomes full
 	if len(agg.statuscodesc) == cap(agg.statuscodesc) {
 		statusCode := <-agg.statuscodesc
-		agg.StatusCodesCount[statusCode]--
+		// TODO: handle panics of goroutines
+		// agg.StatusCodesCount[statusCode]--
+		if _, ok := agg.StatusCodesCount[statusCode]; ok {
+			agg.StatusCodesCount[statusCode]--
+		}
+
 	}
 	// note that statuscodesc is a buffered chan of capacity pollingInterval // config.[...]StatsHistoryInterval
 	agg.statuscodesc <- newReport.StatusCode
@@ -108,7 +114,7 @@ func updateAvgMax(aggMetric [2]int, newMetric time.Duration, numOfReports int) [
 // UpdateAlerting handles the alerting logic
 // Checks if website availability is below config.CriticalAvailability for the past config.WebsiteAlertInterval
 // Checks if website availability has recovered
-func (alert Alert) update(newReport *inspect.Report) {
+func (alert *Alert) update(newReport *inspect.Report) {
 	// update availability using alert.statuscodesc channel
 	// only start dequeuing from channel after it becomes full
 	if len(alert.statuscodesc) == cap(alert.statuscodesc) {

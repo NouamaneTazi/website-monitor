@@ -42,20 +42,29 @@ func main() {
 		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
 	parse()
 
+	// initiate array holding metrics. each metrics corresponds to one URL
+	// metrics are updated over time through `ListenAndProcess()` method
+	// note: we could have used a channel of capacity one to always keep the latest metric ready
+	// but I think this is simpler and more understandable
 	stats := make([]*metrics.Metrics, len(config.UrlsPollingsIntervals))
+
 	for url, pollingInterval := range config.UrlsPollingsIntervals {
 		// Init the inspectors, where each inspector monitors a single URL
 		// and sends back the trace report over the `reportc` channel
 		reportc := inspect.NewInspector(url, pollingInterval)
 
-		// init metrics server for each url
+		// init metrics server for each url and add them to `stats` array
 		s := metrics.NewMetrics(reportc, pollingInterval)
-		go s.ListenAndProcess()
 		stats = append(stats, s)
+
+		// start a goroutine for each url, which going to listen to `reportc` channel
+		// process its reports, and updates the corresponding `Metrics`
+		go s.ListenAndProcess()
 	}
 
 	// show metrics in UI
 	cui.HandleCUI(stats)
+	select {}
 }
 
 // parse parses urls and validates flags

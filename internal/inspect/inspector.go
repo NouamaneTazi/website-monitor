@@ -81,7 +81,7 @@ func (inspector *Inspector) start() {
 		select {
 		case <-inspector.ticker.C:
 			// When the ticker fires, inspect url
-			inspector.inspect()
+			go inspector.inspect()
 		}
 	}
 }
