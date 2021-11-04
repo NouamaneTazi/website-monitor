@@ -28,6 +28,7 @@ import (
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
 	"github.com/NouamaneTazi/iseeu/internal/inspect"
+	"github.com/NouamaneTazi/iseeu/internal/metrics"
 )
 
 func main() {
@@ -36,23 +37,22 @@ func main() {
 	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
 	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
+	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 60*time.Second,
+		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
 	parse()
 
-	// init chan which sends data to metrics
-
-	// Init the inspectors, where each inspector monitors a single URL
 	for url, pollingInterval := range config.UrlsPollingsIntervals {
-		inspect.NewInspector(url, pollingInterval)
-	}
+		// Init the inspectors, where each inspector monitors a single URL
+		// and sends back the trace report over the `reportc` channel
+		reportc := inspect.NewInspector(url, pollingInterval)
 
-	// init metrics
+		// init metrics server for each url
+		stats := metrics.NewMetrics(reportc, pollingInterval)
+		stats.ListenAndProcess()
+	}
 
 	// show metrics in UI
 	select {}
-}
-
-func initCrawler() {
-
 }
 
 // parse parses urls and validates flags

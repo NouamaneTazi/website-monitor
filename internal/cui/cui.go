@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/analyze"
 	"github.com/NouamaneTazi/iseeu/internal/config"
+	"github.com/NouamaneTazi/iseeu/internal/metrics"
 
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
@@ -48,17 +48,8 @@ func (t *UI) Init() error {
 		table.Rows = [][]string{
 			{"website",
 				"Status code count",
-				"Availability",
-				"DNSLookup",
-				"TCPConnection",
-				"TLSHandshake",
-				"ServerProcessing",
-				"ContentTransfer",
-				// "NameLookup",
-				"Connect",
-				"PreTransfer",
-				"StartTransfer",
-				"Total"},
+				"ConnectDuration",
+				"FirstByteDuration"},
 		}
 		table.TextStyle = ui.NewStyle(ui.ColorWhite)
 		table.RowSeparator = false
@@ -86,7 +77,7 @@ func (t *UI) Init() error {
 }
 
 // Update updates UI widgets from UIData.
-func (t *UI) Update(data *analyze.Metrics, refreshInterval time.Duration) {
+func (t *UI) Update(data *metrics.Metrics, refreshInterval time.Duration) {
 	t.Title.Text = fmt.Sprintf("monitoring %d websites every %v, press q to quit", len(data.WebsitesStatsList), refreshInterval)
 	t.Status.Text = fmt.Sprintf("Last update: %v", data.LastTimestamp.Format(time.Stamp))
 
@@ -101,14 +92,6 @@ func (t *UI) Update(data *analyze.Metrics, refreshInterval time.Duration) {
 				strconv.FormatFloat(stat.Availability*100, 'f', 2, 64) + "%",
 				fmt.Sprintf("%dms (%dms)", stat.DNSLookup[0], stat.DNSLookup[1]),
 				fmt.Sprintf("%dms (%dms)", stat.TCPConnection[0], stat.TCPConnection[1]),
-				fmt.Sprintf("%dms (%dms)", stat.TLSHandshake[0], stat.TLSHandshake[1]),
-				fmt.Sprintf("%dms (%dms)", stat.ServerProcessing[0], stat.ServerProcessing[1]),
-				fmt.Sprintf("%dms (%dms)", stat.ContentTransfer[0], stat.ContentTransfer[1]),
-				// fmt.Sprintf("%dms (%dms)", stat.NameLookup[0], stat.NameLookup[1]),
-				fmt.Sprintf("%dms (%dms)", stat.Connect[0], stat.Connect[1]),
-				fmt.Sprintf("%dms (%dms)", stat.PreTransfer[0], stat.PreTransfer[1]),
-				fmt.Sprintf("%dms (%dms)", stat.StartTransfer[0], stat.StartTransfer[1]),
-				fmt.Sprintf("%dms (%dms)", stat.Total[0], stat.Total[1]),
 			})
 
 		// Update alerts

@@ -10,7 +10,8 @@ import (
 
 // Report collects useful metrics from a single HTTP request made by an Inspector
 type Report struct {
-	url               string
+	Url               string
+	PollingInterval   time.Duration
 	StatusCode        int
 	ConnectDuration   time.Duration
 	FirstByteDuration time.Duration
@@ -24,22 +25,23 @@ type Inspector struct {
 	collector *colly.Collector // colly collector which sends and traces HTTP requests
 }
 
-// create a new collector
+// newTraceCollector creates a new collector which traces http requests
 func newTraceCollector(responseCb colly.ResponseCallback) *colly.Collector {
 	collector := colly.NewCollector(colly.TraceHTTP(), colly.AllowURLRevisit())
 	collector.OnResponse(responseCb)
 	return collector
 }
 
-func NewInspector(url string, pollingInterval time.Duration) chan *Report {
+// NewInspector initializes an Inspector
+func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 	// TODO: can we modify calculations so that we keep track only of last one
 	// number of reports to keep track of
-	maxNumOfReports := int(config.MaxHistoryPerURL / pollingInterval)
-
+	maxNumOfReports := int(config.LongStatsHistoryInterval / PollingInterval)
 	reportc := make(chan *Report, maxNumOfReports)
+
 	// init new inspector
 	inspector := &Inspector{
-		ticker:  time.NewTicker(pollingInterval),
+		ticker:  time.NewTicker(PollingInterval),
 		reportc: reportc,
 		url:     url,
 		collector: newTraceCollector(func(resp *colly.Response) {
@@ -48,7 +50,8 @@ func NewInspector(url string, pollingInterval time.Duration) chan *Report {
 			}
 			// create report from trace
 			report := &Report{
-				url:               url,
+				Url:               url,
+				PollingInterval:   PollingInterval,
 				StatusCode:        resp.StatusCode,
 				ConnectDuration:   resp.Trace.ConnectDuration,
 				FirstByteDuration: resp.Trace.FirstByteDuration,
@@ -80,12 +83,3 @@ func (inspector *Inspector) start() {
 		}
 	}
 }
-
-// updateURLReports updates URL reports with useful metrics about website
-// a single http request generates a single report
-// we drop reports older than maxHistoryPerURL
-// func (inspector *Inspector) updateURLReports(url string, report *Report) {
-// 	queue := inspector.Reports
-// 	queue = queue[1:] // TODO: make sure we reallocate memory
-// 	inspector.Reports = append(queue, report)
-// }

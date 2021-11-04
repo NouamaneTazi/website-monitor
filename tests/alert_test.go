@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/analyze"
 	"github.com/NouamaneTazi/iseeu/internal/config"
+	"github.com/NouamaneTazi/iseeu/internal/metrics"
 )
 
 func TestWebsiteStats_updateAlerting(t *testing.T) {
@@ -36,7 +36,7 @@ func TestWebsiteStats_updateAlerting(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stat := &analyze.WebsiteStats{}
+			stat := &metrics.WebsiteStats{}
 			var got want
 			for _, av := range tt.availabilities {
 				stat.Availability = av
