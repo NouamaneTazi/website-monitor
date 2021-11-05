@@ -104,7 +104,6 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 	/*                                MIDDLE TABLE                                */
 	/* -------------------------------------------------------------------------- */
 	// Update stats table
-	t.updateStatsTable(data, refreshInterval)
 	t.StatsTable.Rows = t.StatsTable.Rows[:1]
 	var agg *metrics.IntervalAggData
 	for _, stat := range data {
@@ -138,6 +137,9 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 	/* -------------------------------------------------------------------------- */
 	/*                                   ALERTS                                   */
 	/* -------------------------------------------------------------------------- */
+	// previous number of alerts
+	oldAlertRowsLen := len(t.Alerts.Rows)
+
 	// update alerts
 	for _, stat := range data {
 		if stat.Alert.WebsiteWasDown {
@@ -147,15 +149,15 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 			t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
 		}
 	}
+	// if there's new alerts scrolldown
+	if len(t.Alerts.Rows) != oldAlertRowsLen {
+		t.Alerts.ScrollPageDown()
+	}
 
 	// Rerender widgets
 	var widgets []ui.Drawable
 	widgets = append(widgets, t.Title, t.Status, t.StatsTable, t.Alerts)
 	ui.Render(widgets...)
-
-}
-
-func (t *UI) updateStatsTable(data []*metrics.Metrics, refreshInterval time.Duration) {
 
 }
 

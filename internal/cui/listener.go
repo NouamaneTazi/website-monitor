@@ -35,18 +35,10 @@ func HandleCUI(data []*metrics.Metrics) {
 		case <-longTick.C:
 			counter++
 			ui.UpdateUI(data, config.LongUIRefreshInterval)
-			// TODO: fix this
-			if counter > 1 {
-				ui.Alerts.ScrollPageDown()
-				termui.Render(ui.Alerts)
-			}
+
 		case <-shortTick.C:
 			counter++
 			ui.UpdateUI(data, config.ShortUIRefreshInterval)
-			if counter > 1 {
-				ui.Alerts.ScrollPageDown()
-				termui.Render(ui.Alerts)
-			}
 
 		case e := <-uiEvents:
 			switch e.ID {
