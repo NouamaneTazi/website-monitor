@@ -85,12 +85,12 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 		m.Mu.RLock()
 		defer m.Mu.RUnlock()
 	}
-
+	*
 	/* -------------------------------------------------------------------------- */
 	/*                                   HEADERS                                  */
 	/* -------------------------------------------------------------------------- */
 	t.Title.Text = fmt.Sprintf("monitoring %d websites, press q to quit", len(data))
-	t.Status.Text = fmt.Sprintf("Last update: %v (refreshed every %vs)", data[0].LastTimestamp.Format(time.Stamp), refreshInterval.Seconds())
+	t.Status.Text = fmt.Sprintf("Last update: %v (refreshes every %vs)", data[0].LastTimestamp.Format(time.Stamp), refreshInterval.Seconds())
 
 	/* -------------------------------------------------------------------------- */
 	/*                                MIDDLE TABLE                                */
