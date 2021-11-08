@@ -109,7 +109,7 @@ func (inspector *Inspector) visit(url string) {
 			log.Printf("visit %v panic: %v", inspector.Url, e)
 		}
 	}()
-	println("Visiting", url)
+	// println("Visiting", url)
 
 	// Creates request
 	req, err := http.NewRequest(http.MethodGet, url, nil)
