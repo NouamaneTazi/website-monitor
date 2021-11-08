@@ -77,8 +77,7 @@ func parse() {
 		for i := 0; i < len(tail); i += 2 {
 			pollingInterval, err := strconv.Atoi(tail[i+1])
 			if err != nil {
-				fmt.Println("Error converting polling interval to int", err)
-				os.Exit(2)
+				log.Fatalln("Error converting polling interval to int", err)
 			}
 			// update config
 			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second

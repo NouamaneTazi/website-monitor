@@ -14,6 +14,7 @@ import (
 func HandleCUI(data []*metrics.Metrics) {
 	var ui UI
 	defer func() {
+		//TODO: iz dis necessary
 		if r := recover(); r != nil {
 			log.Println("Recovering from panic:")
 			debug.PrintStack()
@@ -28,16 +29,13 @@ func HandleCUI(data []*metrics.Metrics) {
 	shortTick := time.NewTicker(config.ShortUIRefreshInterval)
 	longTick := time.NewTicker(config.LongUIRefreshInterval)
 
-	var counter int
 	uiEvents := termui.PollEvents()
 	for {
 		select {
 		case <-longTick.C:
-			counter++
 			ui.UpdateUI(data, config.LongUIRefreshInterval)
 
 		case <-shortTick.C:
-			counter++
 			ui.UpdateUI(data, config.ShortUIRefreshInterval)
 
 		case e := <-uiEvents:

@@ -122,17 +122,21 @@ func (agg *IntervalAggData) updateAvgMax(reportQueue []*inspect.Report) {
 	// assuming reportQueue has been updated
 	agg.ConnectDuration, agg.FirstByteDuration = [2]int{0, 0}, [2]int{0, 0}
 	for _, report := range reportQueue {
-		// update ConnectDuration
-		if int(report.ConnectDuration) > agg.ConnectDuration[1] {
-			agg.ConnectDuration[1] = int(report.ConnectDuration.Milliseconds())
+		// update ConnectDuration (-1 means there has been an error)
+		if report.ConnectDuration != -1 {
+			if int(report.ConnectDuration) > agg.ConnectDuration[1] {
+				agg.ConnectDuration[1] = int(report.ConnectDuration.Milliseconds())
+			}
+			agg.ConnectDuration[0] += int(report.ConnectDuration.Milliseconds()) / agg.numOfAggReports
 		}
-		agg.ConnectDuration[0] += int(report.ConnectDuration.Milliseconds()) / agg.numOfAggReports
 
-		// update FirstByteDuration
-		if int(report.FirstByteDuration) > agg.FirstByteDuration[1] {
-			agg.FirstByteDuration[1] = int(report.FirstByteDuration.Milliseconds())
+		// update FirstByteDuration (-1 means there has been an error)
+		if report.FirstByteDuration != -1 {
+			if int(report.FirstByteDuration) > agg.FirstByteDuration[1] {
+				agg.FirstByteDuration[1] = int(report.FirstByteDuration.Milliseconds())
+			}
+			agg.FirstByteDuration[0] += int(report.FirstByteDuration.Milliseconds()) / agg.numOfAggReports
 		}
-		agg.FirstByteDuration[0] += int(report.FirstByteDuration.Milliseconds()) / agg.numOfAggReports
 	}
 }
 
@@ -148,7 +152,7 @@ func (agg *IntervalAggData) updateStatusCount(newReport *inspect.Report) {
 		}
 
 	}
-	// note that statuscodesc is a buffered chan of capacity (pollingInterval / config.[...]StatsHistoryInterval)
+	// note that statuscodesc is a buffered chan of capacity `numOfAggReports`
 	agg.statuscodesc <- newReport.StatusCode
 	agg.StatusCodesCount[newReport.StatusCode]++
 }
@@ -157,7 +161,6 @@ func (agg *IntervalAggData) updateStatusCount(newReport *inspect.Report) {
 // Checks if website availability is below config.CriticalAvailability for the past config.WebsiteAlertInterval
 // Checks if website availability has recovered
 func (alert *Alert) update(newReport *inspect.Report) {
-	// log.Printf("Update alerts %v", alert)
 	// update availability using alert.statuscodesc channel
 	// only start dequeuing from channel after it becomes full
 	if len(alert.statuscodesc) == cap(alert.statuscodesc) {
@@ -166,7 +169,7 @@ func (alert *Alert) update(newReport *inspect.Report) {
 			alert.Availability -= 1 / float64(cap(alert.statuscodesc))
 		}
 	}
-	// note that statuscodesc is a buffered chan of capacity pollingInterval // config.[...]StatsHistoryInterval
+	// note that statuscodesc is a buffered chan of capacity `numOfAggReports`
 	alert.statuscodesc <- newReport.StatusCode
 	if newReport.StatusCode == 200 {
 		alert.Availability += 1 / float64(cap(alert.statuscodesc))

@@ -1,7 +1,6 @@
 package inspect
 
 import (
-	"log"
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
@@ -43,7 +42,18 @@ func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 	// Set response handler
 	collector.OnResponse(func(resp *colly.Response) {
 		if resp.Trace == nil {
-			log.Print("Failed to initialize trace")
+			//TODO: ??
+			// log.Print("Failed to initialize trace")
+			errReport := &Report{
+				Url:               url,
+				PollingInterval:   PollingInterval,
+				StatusCode:        resp.StatusCode,
+				ConnectDuration:   -1,
+				FirstByteDuration: -1,
+			}
+
+			// send error report to metrics
+			reportc <- errReport
 		}
 		// create report from trace
 		report := &Report{
@@ -72,7 +82,7 @@ func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 			FirstByteDuration: -1,
 		}
 
-		// send report over to metrics for further analytics
+		// send error report to metrics
 		reportc <- errReport
 	})
 

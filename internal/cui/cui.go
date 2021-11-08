@@ -82,6 +82,7 @@ func (t *UI) Init() error {
 // Update updates UI widgets from UIData.
 func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 	// Lock so only one goroutine at a time can access the map.
+	//TODO: what iz dis
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("Recovering from panic:", r)
