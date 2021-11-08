@@ -39,6 +39,9 @@ func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 	// define collector
 	collector := newTraceCollector()
 
+	// set timeout equal to PollingInterval
+	collector.SetRequestTimeout(PollingInterval)
+
 	// Set response handler
 	collector.OnResponse(func(resp *colly.Response) {
 		if resp.Trace == nil {
