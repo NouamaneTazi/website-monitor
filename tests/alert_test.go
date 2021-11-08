@@ -15,6 +15,7 @@ func initConfig() {
 	config.ShortStatsHistoryInterval = 10 * time.Second
 	config.LongStatsHistoryInterval = 60 * time.Second
 	config.WebsiteAlertInterval = 10 * time.Second
+	config.CriticalAvailability = 0.8
 }
 func TestAlerting(t *testing.T) {
 	initConfig()

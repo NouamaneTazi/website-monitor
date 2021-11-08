@@ -85,7 +85,7 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 		m.Mu.RLock()
 		defer m.Mu.RUnlock()
 	}
-	*
+
 	/* -------------------------------------------------------------------------- */
 	/*                                   HEADERS                                  */
 	/* -------------------------------------------------------------------------- */
