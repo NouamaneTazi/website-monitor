@@ -77,11 +77,8 @@ func (inspector *Inspector) inspect() {
 }
 
 func (inspector *Inspector) start() {
-	for {
-		select {
-		case <-inspector.ticker.C:
-			// When the ticker fires, inspect url
-			go inspector.inspect()
-		}
+	for range inspector.ticker.C {
+		// When the ticker fires, inspect url
+		go inspector.inspect()
 	}
 }
