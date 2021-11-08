@@ -1,8 +1,22 @@
+name: Release binaries
 on: 
   release:
     types: [created]
     
   workflow_dispatch:
+    inputs:
+      goos:
+        description: 'goos'     
+        required: true
+        default: 'linux'
+      goarch:
+        description: 'goarch'     
+        required: true
+        default: 'amd64'
+      release_tag:
+        description: 'release_tag'     
+        required: true
+        default: 'v1.0'
 
 jobs:
   release-linux-amd64:
@@ -13,6 +27,7 @@ jobs:
     - uses: wangyoucao577/go-release-action@v1.20
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: linux
-        goarch: amd64
+        goos: ${{ github.event.inputs.goos }}
+        goarch: ${{ github.event.inputs.goarch }}
+        release_tag: ${{ github.event.inputs.release_tag }}
         project_path: cmd/iseeu/
