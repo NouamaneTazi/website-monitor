@@ -20,8 +20,3 @@ jobs:
 
     - name: Test
       run: go test -v ./...
-      
-    - name: Go Release Binaries
-      # You may pin to the exact commit or the version.
-      # uses: wangyoucao577/go-release-action@986dc68d35bde3c7c94ba5060e6f15bb564f67f8
-      uses: wangyoucao577/go-release-action@v1.20
