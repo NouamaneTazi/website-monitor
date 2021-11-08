@@ -33,7 +33,8 @@ import (
 )
 
 func main() {
-	// Parse urls and polling intervals and options, and updates `config`
+
+	// Parse urls and polling intervals and options
 	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short refreshes show stats for past `ShortStatsHistoryInterval` minutes")
@@ -67,25 +68,22 @@ func main() {
 	cui.HandleCUI(stats)
 }
 
-// parse parses urls and validates flags
+// parse parses urls and validates command format
 func parse() {
 	flag.Parse()
 	tail := flag.Args()
-
-	// validates the format `URL POLLING_INTERVAL`
 	if len(tail) > 0 && len(tail)%2 == 0 {
 		for i := 0; i < len(tail); i += 2 {
 			pollingInterval, err := strconv.Atoi(tail[i+1])
 			if err != nil {
 				log.Fatalln("Error converting polling interval to int", err)
 			}
-			// update config
 			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2\n\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "OPTIONS:")
-		flag.PrintDefaults()
+		flag.PrintDefaults() //TODO: better usage
 		log.Fatal("Urls must be provided with their respective polling intervals.")
 	}
 }
