@@ -48,7 +48,7 @@ func main() {
 		go s.ListenAndProcess()
 	}
 
-	// show metrics in UI
+	// create CUI and handle keyboardBindings
 	cui.HandleCUI(stats)
 }
 

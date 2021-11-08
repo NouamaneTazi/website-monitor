@@ -13,13 +13,15 @@ import (
 // handleCUI creates CUI and handles keyboardBindings
 func HandleCUI(data []*metrics.Metrics) {
 	var ui UI
+	// TODO: check if this is needed
+	// handle panic
 	defer func() {
-		//TODO: iz dis necessary
 		if r := recover(); r != nil {
 			log.Println("Recovering from panic:")
 			debug.PrintStack()
 		}
 	}()
+
 	if err := ui.Init(); err != nil {
 		log.Fatalf("Failed to start CUI %v", err)
 	}
@@ -29,6 +31,7 @@ func HandleCUI(data []*metrics.Metrics) {
 	shortTick := time.NewTicker(config.ShortUIRefreshInterval)
 	longTick := time.NewTicker(config.LongUIRefreshInterval)
 
+	// keyboard bindings
 	uiEvents := termui.PollEvents()
 	for {
 		select {

@@ -9,16 +9,18 @@ import (
 	"github.com/NouamaneTazi/iseeu/internal/inspect"
 )
 
-// Metrics represents data to be passed to UI.
+// Metrics contains url trace information and aggregation of reports over a short and a long interval
 type Metrics struct {
-	Url             string        // the url being monitored
-	PollingInterval time.Duration // the url's polling interval
-	LastTimestamp   time.Time     // last updated time stamp
-	reportc         <-chan *inspect.Report
-	AggData         *AggData
-	Alert           *Alert
+	Url             string                 // the url being monitored
+	PollingInterval time.Duration          // the url's polling interval
+	LastTimestamp   time.Time              // last updated time stamp
+	reportc         <-chan *inspect.Report // the reports channel
 	Mu              sync.RWMutex
+	AggData         *AggData // aggregated data that will be passed to UI
+	Alert           *Alert   // holds alerting logic
 }
+
+// Alert tracks url alerts
 type Alert struct {
 	statuscodesc        chan int
 	Availability        float64
@@ -26,7 +28,7 @@ type Alert struct {
 	WebsiteHasRecovered bool
 }
 
-// AggData regroups the aggregated data that will be passed to UI
+// AggData regroups the aggregated data over a short and a long interval
 type AggData struct {
 	Short, Long *IntervalAggData
 }
@@ -47,7 +49,6 @@ type IntervalAggData struct {
 func NewMetrics(reportc <-chan *inspect.Report, pollingInterval time.Duration) *Metrics {
 
 	// Use queues to find max values in metrics
-	// Note we could use a maxheap or maximum sliding window for O(1) time complexity here
 	shortReportQueue := make([]*inspect.Report, 0, int(config.ShortStatsHistoryInterval/pollingInterval))
 	longReportQueue := make([]*inspect.Report, 0, int(config.LongStatsHistoryInterval/pollingInterval))
 
@@ -84,6 +85,7 @@ func (m *Metrics) ListenAndProcess() {
 	}
 }
 
+// update updates metrics aggregated data and alerts from a report
 func (m *Metrics) update(newReport *inspect.Report) {
 	m.Mu.Lock()
 	defer m.Mu.Unlock()
@@ -95,6 +97,8 @@ func (m *Metrics) update(newReport *inspect.Report) {
 	m.AggData.update(newReport)
 	m.Alert.update(newReport)
 }
+
+// update updates `AggData` data from a report
 func (agg *AggData) update(newReport *inspect.Report) {
 	agg.Short.aggregate(newReport)
 	agg.Long.aggregate(newReport)
@@ -102,13 +106,14 @@ func (agg *AggData) update(newReport *inspect.Report) {
 
 // aggregate aggregates report for the past `agg.historyInterval` interval
 func (agg *IntervalAggData) aggregate(newReport *inspect.Report) {
-	// update reportQueue
-	// first element will be garbage collected when enough new elements are added to the slice to cause reallocation
-	// check https://stackoverflow.com/questions/2818852/is-there-a-queue-implementation#comment103168917_26863706
+	// add newReport to reportQueue
 	if len(agg.reportQueue) >= agg.numOfAggReports {
+		// * note first element will be garbage collected when enough new elements are added to the slice to cause reallocation
+		// check https://stackoverflow.com/questions/2818852/is-there-a-queue-implementation#comment103168917_26863706
 		agg.reportQueue = agg.reportQueue[1:]
 	}
 	agg.reportQueue = append(agg.reportQueue, newReport)
+
 	// update avg/max stats
 	agg.updateAvgMax(agg.reportQueue)
 
@@ -121,10 +126,12 @@ func (agg *IntervalAggData) aggregate(newReport *inspect.Report) {
 }
 
 // updateAvgMax updates `IntervalAggData` with the aggregated avg and max of past reports
-// TODO: try not to use a queue
+// * NOTE we could use a maxheap or maximum sliding window for O(1) time complexity here
 func (agg *IntervalAggData) updateAvgMax(reportQueue []*inspect.Report) {
-	// assuming reportQueue has been updated
+	// assuming reportQueue has the newReport
 	agg.ConnectDuration, agg.FirstByteDuration = [2]int{0, 0}, [2]int{0, 0}
+
+	// TODO: this can be refactored
 	for _, report := range reportQueue {
 		// update ConnectDuration (-1 means there has been an error)
 		if report.ConnectDuration != -1 {
@@ -144,17 +151,14 @@ func (agg *IntervalAggData) updateAvgMax(reportQueue []*inspect.Report) {
 	}
 }
 
-// updateStatusCount updates status count using `agg.statuscodesc` channel
+// updateStatusCount updates status count using `agg.statuscodesc` channel (no need for a queue here)
 func (agg *IntervalAggData) updateStatusCount(newReport *inspect.Report) {
 	// only start dequeuing from channel after it becomes full
 	if len(agg.statuscodesc) == cap(agg.statuscodesc) {
 		statusCode := <-agg.statuscodesc
-		// TODO: handle panics of goroutines
-		// agg.StatusCodesCount[statusCode]--
 		if _, ok := agg.StatusCodesCount[statusCode]; ok {
 			agg.StatusCodesCount[statusCode]--
 		}
-
 	}
 	// note that statuscodesc is a buffered chan of capacity `numOfAggReports`
 	agg.statuscodesc <- newReport.StatusCode
@@ -162,8 +166,8 @@ func (agg *IntervalAggData) updateStatusCount(newReport *inspect.Report) {
 }
 
 // update handles the alerting logic
-// Checks if website availability is below config.CriticalAvailability for the past config.WebsiteAlertInterval
-// Checks if website availability has recovered
+// Alert if website availability is below config.CriticalAvailability for the past config.WebsiteAlertInterval
+// Alert if website has recovered
 func (alert *Alert) update(newReport *inspect.Report) {
 	oldAvailability := alert.Availability
 	// update availability using alert.statuscodesc channel
