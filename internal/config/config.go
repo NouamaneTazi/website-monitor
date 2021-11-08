@@ -9,5 +9,5 @@ var (
 	LongStatsHistoryInterval  time.Duration                    // Long history interval (in minutes)
 	WebsiteAlertInterval      time.Duration                    // Shows alert if website is down for `WebsiteAlertInterval` minutes
 	UrlsPollingsIntervals     = make(map[string]time.Duration) // maps urls to their corresponding polling interval
-	CriticalAvailability      = 0.8                            // availability of websites below which we show an alert
+	CriticalAvailability      float64                          // availability of websites below which we show an alert
 )

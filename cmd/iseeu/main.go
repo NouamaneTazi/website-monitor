@@ -1,19 +1,3 @@
-/*
-Copyright 2021, 2021 the ISeeU contributors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package main
 
 import (
@@ -33,7 +17,6 @@ import (
 )
 
 func main() {
-
 	// Parse urls and polling intervals and options
 	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
@@ -42,6 +25,7 @@ func main() {
 		"Long refreshes show stats for past `LongStatsHistoryInterval` minutes")
 	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 10*time.Second,
 		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
+	flag.Float64Var(&config.CriticalAvailability, "crit", 0.8, "Availability of websites below which we show an alert")
 	parse()
 
 	// initiate array holding metrics. each metrics corresponds to one URL
@@ -81,9 +65,10 @@ func parse() {
 			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nUsage: %s [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Example: %s -crit 0.3 -sui 1s google.com 2 http://google.fr 1\n\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "OPTIONS:")
-		flag.PrintDefaults() //TODO: better usage
+		flag.PrintDefaults()
 		log.Fatal("Urls must be provided with their respective polling intervals.")
 	}
 }
