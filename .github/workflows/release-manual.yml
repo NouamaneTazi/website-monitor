@@ -1,8 +1,5 @@
 name: Release binaries
 on: 
-  release:
-    types: [created]
-    
   workflow_dispatch:
     inputs:
       goos:
@@ -16,7 +13,11 @@ on:
       release_tag:
         description: 'release_tag'     
         required: true
-        default: 'v1.0'
+        default: 'v1.1'
+      binary_name:
+        description: 'binary_name'     
+        required: true
+        default: 'iseeu'
 
 jobs:
   release-linux-amd64:
@@ -31,3 +32,4 @@ jobs:
         goarch: ${{ github.event.inputs.goarch }}
         release_tag: ${{ github.event.inputs.release_tag }}
         project_path: cmd/iseeu/
+        binary_name: iseeu
