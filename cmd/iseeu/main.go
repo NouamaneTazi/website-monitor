@@ -26,11 +26,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/analyze"
 	"github.com/NouamaneTazi/iseeu/internal/config"
 	"github.com/NouamaneTazi/iseeu/internal/cui"
 	"github.com/NouamaneTazi/iseeu/internal/inspect"
-	"github.com/gizak/termui/v3"
+	"github.com/NouamaneTazi/iseeu/internal/metrics"
 )
 
 func main() {
@@ -38,28 +37,35 @@ func main() {
 	// Parse urls and polling intervals and options
 	flag.DurationVar(&config.ShortUIRefreshInterval, "sui", 2*time.Second, "Short refreshing UI interval (in seconds)")
 	flag.DurationVar(&config.LongUIRefreshInterval, "lui", 10*time.Second, "Long refreshing UI interval (in seconds)")
-	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short history interval (in minutes)")
-	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second, "Long history interval (in minutes)")
+	flag.DurationVar(&config.ShortStatsHistoryInterval, "sstats", 10*time.Second, "Short refreshes show stats for past `ShortStatsHistoryInterval` minutes")
+	flag.DurationVar(&config.LongStatsHistoryInterval, "lstats", 60*time.Second,
+		"Long refreshes show stats for past `LongStatsHistoryInterval` minutes")
+	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 10*time.Second,
+		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
 	parse()
 
-	// Init the inspectors, where each inspector monitors a single URL
-	inspectorsList := make([]*inspect.Inspector, 0, len(config.UrlsPollingsIntervals))
+	// initiate array holding metrics. each metrics corresponds to one URL
+	// metrics are updated over time through `ListenAndProcess()` method
+	// note: we could have used a channel of capacity one to always keep the latest metric ready
+	// but I think this is simpler and more understandable
+	stats := make([]*metrics.Metrics, 0, len(config.UrlsPollingsIntervals))
+
 	for url, pollingInterval := range config.UrlsPollingsIntervals {
-		inspector := inspect.NewInspector(url, inspect.IntervalInspection(pollingInterval, config.MaxHistoryPerURL))
-		inspectorsList = append(inspectorsList, inspector)
+		// Init the inspectors, where each inspector monitors a single URL
+		// and sends back the trace report over the `reportc` channel
+		reportc := inspect.NewInspector(url, pollingInterval)
 
-		// Init website monitoring
-		go inspector.StartLoop()
+		// init metrics server for each url and add them to `stats` array
+		s := metrics.NewMetrics(reportc, pollingInterval)
+		stats = append(stats, s)
+
+		// start a goroutine for each url, which going to listen to `reportc` channel
+		// process its reports, and updates the corresponding `Metrics`
+		go s.ListenAndProcess()
 	}
 
-	if config.EnableCUI {
-		// Init UIData
-		data := analyze.NewUIData(inspectorsList)
-
-		// Starts CUI
-		handleCUI(data)
-	}
-
+	// show metrics in UI
+	cui.HandleCUI(stats)
 }
 
 // parse parses urls and validates command format
@@ -70,8 +76,7 @@ func parse() {
 		for i := 0; i < len(tail); i += 2 {
 			pollingInterval, err := strconv.Atoi(tail[i+1])
 			if err != nil {
-				fmt.Println("Error converting polling interval to int", err)
-				os.Exit(2)
+				log.Fatalln("Error converting polling interval to int", err)
 			}
 			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
 		}
@@ -101,66 +106,4 @@ func parseURL(uri string) string {
 	}
 
 	return url.String()
-}
-
-// handleCUI creates CUI and handles keyboardBindings
-func handleCUI(data *analyze.UIData) {
-	var ui cui.UI
-	if err := ui.Init(); err != nil {
-		// TODO: should i use log.Fatal
-		log.Fatalf("Failed to start CUI %v", err)
-	}
-	defer ui.Close()
-
-	// Ticker that refreshes UI
-	shortTick := time.NewTicker(config.ShortUIRefreshInterval)
-
-	var counter int
-	uiEvents := termui.PollEvents()
-	for {
-		select {
-		case <-shortTick.C:
-			counter++
-			lenRows := len(ui.Alerts.Rows)
-			if counter%int(config.LongUIRefreshInterval/config.ShortUIRefreshInterval) != 0 {
-				UpdateUI(ui, data, config.ShortUIRefreshInterval)
-			} else {
-				UpdateUI(ui, data, config.LongUIRefreshInterval)
-			}
-			if ui.Alerts.SelectedRow == lenRows-1 || counter < 2 {
-				ui.Alerts.ScrollPageDown()
-				termui.Render(ui.Alerts)
-			}
-
-		case e := <-uiEvents:
-			switch e.ID {
-			case "q", "<C-c>":
-				return
-			case "j", "<Down>":
-				ui.Alerts.ScrollDown()
-			case "k", "<Up>":
-				ui.Alerts.ScrollUp()
-			case "<C-d>":
-				ui.Alerts.ScrollHalfPageDown()
-			case "<C-u>":
-				ui.Alerts.ScrollHalfPageUp()
-			case "<C-f>":
-				ui.Alerts.ScrollPageDown()
-			case "<C-b>":
-				ui.Alerts.ScrollPageUp()
-			case "<Home>":
-				ui.Alerts.ScrollTop()
-			case "G", "<End>":
-				ui.Alerts.ScrollBottom()
-			}
-
-			termui.Render(ui.Alerts)
-		}
-	}
-}
-
-// UpdateUI collects data from inspectors and refreshes UI.
-func UpdateUI(ui cui.UI, data *analyze.UIData, interval time.Duration) {
-	data.UpdateData(interval)
-	ui.Update(data, interval)
 }
