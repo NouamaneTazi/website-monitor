@@ -12,7 +12,7 @@ import (
 type Metrics struct {
 	Url           string    // the url being monitored
 	LastTimestamp time.Time // last updated time stamp
-	reportc       chan *inspect.Report
+	reportc       <-chan *inspect.Report
 	AggData       *AggData
 	Alert         *Alert
 	Mu            sync.Mutex
@@ -31,17 +31,18 @@ type AggData struct {
 
 // IntervalAggData aggregates data over `historyInterval`
 type IntervalAggData struct {
-	historyInterval   time.Duration
-	StatusCodesCount  map[int]int
-	statuscodesc      chan int
-	reportQueue       []*inspect.Report
-	Availability      float64
-	ConnectDuration   [2]int // [avg, max] in milliseconds
-	FirstByteDuration [2]int // [avg, max] in milliseconds
+	historyInterval   time.Duration     // specifies duration of relevant reports history
+	numOfAggReports   int               // specifies number of relevant reports (= historyInterval / PollingInterval)
+	StatusCodesCount  map[int]int       // hold count of status codes of past reports
+	statuscodesc      chan int          // channel to update status codes count (we don't need queue)
+	reportQueue       []*inspect.Report // stores last (historyInterval / PollingInterval) reports to calculate aggregated metrics
+	Availability      float64           // Website availability (%)
+	ConnectDuration   [2]int            // [avg, max] in milliseconds
+	FirstByteDuration [2]int            // [avg, max] in milliseconds
 }
 
 // NewMetrics inits and return new Metrics object.
-func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Metrics {
+func NewMetrics(reportc <-chan *inspect.Report, pollingInterval time.Duration) *Metrics {
 
 	// Use queues to find max values in metrics
 	// Note we could use a maxheap or maximum sliding window for O(1) time complexity here
@@ -53,12 +54,14 @@ func NewMetrics(reportc chan *inspect.Report, pollingInterval time.Duration) *Me
 		AggData: &AggData{
 			Short: &IntervalAggData{
 				historyInterval:  config.ShortStatsHistoryInterval,
+				numOfAggReports:  int(config.ShortStatsHistoryInterval / pollingInterval),
 				statuscodesc:     make(chan int, int(config.ShortStatsHistoryInterval/pollingInterval)),
 				reportQueue:      shortReportQueue,
 				StatusCodesCount: make(map[int]int),
 			},
 			Long: &IntervalAggData{
 				historyInterval:  config.LongStatsHistoryInterval,
+				numOfAggReports:  int(config.LongStatsHistoryInterval / pollingInterval),
 				statuscodesc:     make(chan int, int(config.LongStatsHistoryInterval/pollingInterval)),
 				reportQueue:      longReportQueue,
 				StatusCodesCount: make(map[int]int)},
@@ -96,12 +99,10 @@ func (agg *AggData) update(newReport *inspect.Report) {
 
 // aggregate aggregates report for the past `agg.historyInterval` interval
 func (agg *IntervalAggData) aggregate(newReport *inspect.Report) {
-	numOfReports := int(agg.historyInterval / newReport.PollingInterval)
-
 	// update reportQueue
 	// first element will be garbage collected when enough new elements are added to the slice to cause reallocation
 	// check https://stackoverflow.com/questions/2818852/is-there-a-queue-implementation#comment103168917_26863706
-	if len(agg.reportQueue) >= numOfReports {
+	if len(agg.reportQueue) >= agg.numOfAggReports {
 		agg.reportQueue = agg.reportQueue[1:]
 	}
 	agg.reportQueue = append(agg.reportQueue, newReport)
@@ -112,26 +113,26 @@ func (agg *IntervalAggData) aggregate(newReport *inspect.Report) {
 	agg.updateStatusCount(newReport)
 
 	// update availability
-	agg.Availability = float64(agg.StatusCodesCount[200]) / float64(numOfReports)
+	agg.Availability = float64(agg.StatusCodesCount[200]) / float64(agg.numOfAggReports)
 }
 
-// updateAvgMax keeps track of the avg and max of a metrics over past
+// updateAvgMax updates `IntervalAggData` with the aggregated avg and max of past reports
 // TODO: try not to use a queue
 func (agg *IntervalAggData) updateAvgMax(reportQueue []*inspect.Report) {
-	numOfReports := int(agg.historyInterval / reportQueue[len(reportQueue)-1].PollingInterval)
-
 	// assuming reportQueue has been updated
 	agg.ConnectDuration, agg.FirstByteDuration = [2]int{0, 0}, [2]int{0, 0}
 	for _, report := range reportQueue {
-		// updating ConnectDuration
+		// update ConnectDuration
 		if int(report.ConnectDuration) > agg.ConnectDuration[1] {
 			agg.ConnectDuration[1] = int(report.ConnectDuration.Milliseconds())
 		}
-		agg.ConnectDuration[0] += int(report.ConnectDuration.Milliseconds()) / numOfReports
+		agg.ConnectDuration[0] += int(report.ConnectDuration.Milliseconds()) / agg.numOfAggReports
+
+		// update FirstByteDuration
 		if int(report.FirstByteDuration) > agg.FirstByteDuration[1] {
 			agg.FirstByteDuration[1] = int(report.FirstByteDuration.Milliseconds())
 		}
-		agg.FirstByteDuration[0] += int(report.FirstByteDuration.Milliseconds()) / numOfReports
+		agg.FirstByteDuration[0] += int(report.FirstByteDuration.Milliseconds()) / agg.numOfAggReports
 	}
 }
 

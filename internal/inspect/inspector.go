@@ -26,9 +26,8 @@ type Inspector struct {
 }
 
 // newTraceCollector creates a new collector which traces http requests
-func newTraceCollector(responseCb colly.ResponseCallback) *colly.Collector {
-	collector := colly.NewCollector(colly.TraceHTTP(), colly.AllowURLRevisit())
-	collector.OnResponse(responseCb)
+func newTraceCollector() *colly.Collector {
+	collector := colly.NewCollector(colly.TraceHTTP(), colly.AllowURLRevisit(), colly.ParseHTTPErrorResponse())
 	return collector
 }
 
@@ -38,47 +37,61 @@ func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 	maxNumOfReports := int(config.LongStatsHistoryInterval / PollingInterval)
 	reportc := make(chan *Report, maxNumOfReports)
 
+	// define collector
+	collector := newTraceCollector()
+
+	// Set response handler
+	collector.OnResponse(func(resp *colly.Response) {
+		if resp.Trace == nil {
+			log.Print("Failed to initialize trace")
+		}
+		// create report from trace
+		report := &Report{
+			Url:               url,
+			PollingInterval:   PollingInterval,
+			StatusCode:        resp.StatusCode,
+			ConnectDuration:   resp.Trace.ConnectDuration,
+			FirstByteDuration: resp.Trace.FirstByteDuration,
+		}
+
+		// send report over to metrics for further analytics
+		reportc <- report
+	})
+
+	// Set error handler
+	// By default, Colly parses only successful HTTP responses. Set ParseHTTPErrorResponse
+	// to true to enable parsing status codes other than 2xx.
+	// For simplicity we'll consider a website not available if the HTTP response is not successful
+	collector.OnError(func(resp *colly.Response, err error) {
+		// log.Println("Request URL:", resp.Request.URL, "failed with response:", resp, "\nError:", err)
+		errReport := &Report{
+			Url:               url,
+			PollingInterval:   PollingInterval,
+			StatusCode:        resp.StatusCode,
+			ConnectDuration:   -1,
+			FirstByteDuration: -1,
+		}
+
+		// send report over to metrics for further analytics
+		reportc <- errReport
+	})
+
 	// init new inspector
 	inspector := &Inspector{
-		ticker:  time.NewTicker(PollingInterval),
-		reportc: reportc,
-		url:     url,
-		collector: newTraceCollector(func(resp *colly.Response) {
-			if resp.Trace == nil {
-				log.Print("Failed to initialize trace")
-			}
-			// create report from trace
-			report := &Report{
-				Url:               url,
-				PollingInterval:   PollingInterval,
-				StatusCode:        resp.StatusCode,
-				ConnectDuration:   resp.Trace.ConnectDuration,
-				FirstByteDuration: resp.Trace.FirstByteDuration,
-			}
-
-			// send report over to metrics for further analytics
-			reportc <- report
-		}),
+		ticker:    time.NewTicker(PollingInterval),
+		reportc:   reportc,
+		url:       url,
+		collector: collector,
 	}
 
 	// start monitoring
-	go inspector.start()
+	go inspector.startInspecting()
 	return reportc
 }
 
-func (inspector *Inspector) inspect() {
-	// log.Printf("Visiting %s", inspector.url)
-
-	err := inspector.collector.Visit(inspector.url)
-	if err != nil {
-		// TODO: handle this (send suiting data report)
-		log.Printf("Failed to visit url %s: %v", inspector.url, err)
-	}
-}
-
-func (inspector *Inspector) start() {
+func (inspector *Inspector) startInspecting() {
 	for range inspector.ticker.C {
 		// When the ticker fires, inspect url
-		go inspector.inspect()
+		go inspector.collector.Visit(inspector.url)
 	}
 }

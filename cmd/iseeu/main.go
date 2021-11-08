@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
-	"github.com/NouamaneTazi/iseeu/internal/cui"
 	"github.com/NouamaneTazi/iseeu/internal/inspect"
 	"github.com/NouamaneTazi/iseeu/internal/metrics"
 )
@@ -64,7 +63,8 @@ func main() {
 	}
 
 	// show metrics in UI
-	cui.HandleCUI(stats)
+	// cui.HandleCUI(stats)
+	select {}
 }
 
 // parse parses urls and validates flags
