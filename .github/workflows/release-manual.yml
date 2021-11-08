@@ -1,4 +1,4 @@
-name: Release binaries
+name: Release binaries (manual)
 on: 
   workflow_dispatch:
     inputs:
