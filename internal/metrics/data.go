@@ -11,12 +11,13 @@ import (
 
 // Metrics represents data to be passed to UI.
 type Metrics struct {
-	Url           string    // the url being monitored
-	LastTimestamp time.Time // last updated time stamp
-	reportc       <-chan *inspect.Report
-	AggData       *AggData
-	Alert         *Alert
-	Mu            sync.RWMutex
+	Url             string        // the url being monitored
+	PollingInterval time.Duration // the url's polling interval
+	LastTimestamp   time.Time     // last updated time stamp
+	reportc         <-chan *inspect.Report
+	AggData         *AggData
+	Alert           *Alert
+	Mu              sync.RWMutex
 }
 type Alert struct {
 	statuscodesc        chan int
@@ -51,7 +52,8 @@ func NewMetrics(reportc <-chan *inspect.Report, pollingInterval time.Duration) *
 	longReportQueue := make([]*inspect.Report, 0, int(config.LongStatsHistoryInterval/pollingInterval))
 
 	return &Metrics{
-		reportc: reportc,
+		PollingInterval: pollingInterval,
+		reportc:         reportc,
 		AggData: &AggData{
 			Short: &IntervalAggData{
 				historyInterval:  config.ShortStatsHistoryInterval,

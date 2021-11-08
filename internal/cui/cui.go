@@ -49,6 +49,7 @@ func (t *UI) Init() error {
 		table := widgets.NewTable()
 		table.Rows = [][]string{
 			{"website",
+				"Polling Interval",
 				"Status code count",
 				"Availability",
 				"ConnectDuration",
@@ -99,7 +100,7 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 	/*                                   HEADERS                                  */
 	/* -------------------------------------------------------------------------- */
 	t.Title.Text = fmt.Sprintf("monitoring %d websites, press q to quit", len(data))
-	t.Status.Text = fmt.Sprintf("Last update: %v", data[0].LastTimestamp.Format(time.Stamp))
+	t.Status.Text = fmt.Sprintf("Last update: %v (refreshed every %vs)", data[0].LastTimestamp.Format(time.Stamp), refreshInterval.Seconds())
 
 	/* -------------------------------------------------------------------------- */
 	/*                                MIDDLE TABLE                                */
@@ -118,6 +119,7 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 		// Update stat row in table
 		t.StatsTable.Rows = append(t.StatsTable.Rows,
 			[]string{stat.Url,
+				fmt.Sprintf("%vs", stat.PollingInterval.Seconds()),
 				strings.Join(formatStatusCodeCount(agg.StatusCodesCount), ""),
 				strconv.FormatFloat(agg.Availability*100, 'f', 2, 64) + "%",
 				fmt.Sprintf("%dms (%dms)", agg.ConnectDuration[0], agg.ConnectDuration[1]),
