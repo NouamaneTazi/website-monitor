@@ -64,9 +64,7 @@ func main() {
 	}
 
 	// show metrics in UI
-	// log.Println(stats)
 	cui.HandleCUI(stats)
-	select {}
 }
 
 // parse parses urls and validates flags

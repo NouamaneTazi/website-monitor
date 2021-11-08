@@ -43,7 +43,7 @@ func HandleCUI(data []*metrics.Metrics) {
 		case e := <-uiEvents:
 			switch e.ID {
 			case "q", "<C-c>":
-				// interrupt app gracefully
+				// TODO: interrupt app gracefully
 				return
 			case "j", "<Down>":
 				ui.Alerts.ScrollDown()

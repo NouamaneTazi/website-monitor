@@ -34,8 +34,7 @@ func newTraceCollector(responseCb colly.ResponseCallback) *colly.Collector {
 
 // NewInspector initializes an Inspector
 func NewInspector(url string, PollingInterval time.Duration) chan *Report {
-	// TODO: can we modify calculations so that we keep track only of last one
-	// number of reports to keep track of
+	// number of reports to keep track of (we keep reports as old as `LongStatsHistoryInterval`)
 	maxNumOfReports := int(config.LongStatsHistoryInterval / PollingInterval)
 	reportc := make(chan *Report, maxNumOfReports)
 
