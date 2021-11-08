@@ -91,8 +91,8 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 		}
 	}()
 	for _, m := range data {
-		m.Mu.Lock()
-		defer m.Mu.Unlock()
+		m.Mu.RLock()
+		defer m.Mu.RUnlock()
 	}
 
 	/* -------------------------------------------------------------------------- */

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -15,7 +16,7 @@ type Metrics struct {
 	reportc       <-chan *inspect.Report
 	AggData       *AggData
 	Alert         *Alert
-	Mu            sync.Mutex
+	Mu            sync.RWMutex
 }
 type Alert struct {
 	statuscodesc        chan int
@@ -72,7 +73,7 @@ func NewMetrics(reportc <-chan *inspect.Report, pollingInterval time.Duration) *
 	}
 }
 
-// ListenAndProcess listens to reports channel and process every process to extract useful metrics
+// ListenAndProcess listens for incoming reports and updates metrics
 func (m *Metrics) ListenAndProcess() {
 	// every `pollingInterval` this receives a report from Inspector
 	for report := range m.reportc {
@@ -114,6 +115,7 @@ func (agg *IntervalAggData) aggregate(newReport *inspect.Report) {
 
 	// update availability
 	agg.Availability = float64(agg.StatusCodesCount[200]) / float64(agg.numOfAggReports)
+	agg.Availability = math.Round(agg.Availability*100) / 100
 }
 
 // updateAvgMax updates `IntervalAggData` with the aggregated avg and max of past reports
@@ -161,6 +163,7 @@ func (agg *IntervalAggData) updateStatusCount(newReport *inspect.Report) {
 // Checks if website availability is below config.CriticalAvailability for the past config.WebsiteAlertInterval
 // Checks if website availability has recovered
 func (alert *Alert) update(newReport *inspect.Report) {
+	oldAvailability := alert.Availability
 	// update availability using alert.statuscodesc channel
 	// only start dequeuing from channel after it becomes full
 	if len(alert.statuscodesc) == cap(alert.statuscodesc) {
@@ -174,15 +177,16 @@ func (alert *Alert) update(newReport *inspect.Report) {
 	if newReport.StatusCode == 200 {
 		alert.Availability += 1 / float64(cap(alert.statuscodesc))
 	}
-
+	alert.Availability = math.Round(alert.Availability*100) / 100
 	if alert.WebsiteHasRecovered {
 		alert.WebsiteHasRecovered = false
 	}
-	if alert.WebsiteWasDown && alert.Availability >= config.CriticalAvailability {
-		alert.WebsiteWasDown = false
+	if oldAvailability < config.CriticalAvailability && alert.Availability >= config.CriticalAvailability {
 		alert.WebsiteHasRecovered = true
 	}
-	if alert.Availability < config.CriticalAvailability {
+	if newReport.StatusCode == 200 {
+		alert.WebsiteWasDown = false
+	} else {
 		alert.WebsiteWasDown = true
 	}
 }
