@@ -10,5 +10,5 @@ var (
 	UrlsPollingsIntervals     = make(map[string]time.Duration) // maps urls to their corresponding polling interval
 	MaxHistoryPerURL          = 1 * time.Minute                // max stats history duration
 	CriticalAvailability      = 0.8                            // availability of websites below which we show an alert
-	EnableCUI                 = false                          // whether to enable CUI
+	EnableCUI                 = true                           // whether to enable CUI
 )
