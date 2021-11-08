@@ -7,6 +7,14 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
+// Inspector monitors an url every polling interval, and sends reports over `reportc` channel
+type Inspector struct {
+	ticker    *time.Ticker     // periodic ticker of periodicity `PollingInterval`
+	url       string           // current URLs
+	reportc   chan *Report     // channel used to report metrics
+	collector *colly.Collector // colly collector which sends and traces HTTP requests
+}
+
 // Report collects useful metrics from a single HTTP request made by an Inspector
 type Report struct {
 	Url               string
@@ -16,22 +24,8 @@ type Report struct {
 	FirstByteDuration time.Duration
 }
 
-// Inspector monitors a url every polling interval
-type Inspector struct {
-	ticker    *time.Ticker     // periodic ticker
-	url       string           // current URLs
-	reportc   chan *Report     // channel used to report metrics
-	collector *colly.Collector // colly collector which sends and traces HTTP requests
-}
-
-// newTraceCollector creates a new collector which traces http requests
-func newTraceCollector() *colly.Collector {
-	collector := colly.NewCollector(colly.TraceHTTP(), colly.AllowURLRevisit(), colly.ParseHTTPErrorResponse())
-	return collector
-}
-
-// NewInspector initializes an Inspector
-func NewInspector(url string, PollingInterval time.Duration) chan *Report {
+// NewInspector initializes an Inspector and returns the channel over which it communicates reports
+func NewInspector(url string, PollingInterval time.Duration) <-chan *Report {
 	// number of reports to keep track of (we keep reports as old as `LongStatsHistoryInterval`)
 	maxNumOfReports := int(config.LongStatsHistoryInterval / PollingInterval)
 	reportc := make(chan *Report, maxNumOfReports)
@@ -45,8 +39,7 @@ func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 	// Set response handler
 	collector.OnResponse(func(resp *colly.Response) {
 		if resp.Trace == nil {
-			//TODO: ??
-			// log.Print("Failed to initialize trace")
+			//TODO: check if we ever reach here
 			errReport := &Report{
 				Url:               url,
 				PollingInterval:   PollingInterval,
@@ -102,6 +95,13 @@ func NewInspector(url string, PollingInterval time.Duration) chan *Report {
 	return reportc
 }
 
+// newTraceCollector creates a new `colly` collector which traces http requests
+func newTraceCollector() *colly.Collector {
+	collector := colly.NewCollector(colly.TraceHTTP(), colly.AllowURLRevisit(), colly.ParseHTTPErrorResponse())
+	return collector
+}
+
+// startInspecting start inspection loop of the url every `PollingInterval`
 func (inspector *Inspector) startInspecting() {
 	for range inspector.ticker.C {
 		// When the ticker fires, inspect url

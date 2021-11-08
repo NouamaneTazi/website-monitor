@@ -30,8 +30,8 @@ func main() {
 
 	// initiate array holding metrics. each metrics corresponds to one URL
 	// metrics are updated over time through `ListenAndProcess()` method
-	// note: we could have used a channel of capacity one to always keep the latest metric ready
-	// but I think this is simpler and more understandable
+	// * note: we could have used a channel of capacity one to always keep the latest metric ready
+	// * but I think this is simpler and more understandable
 	stats := make([]*metrics.Metrics, 0, len(config.UrlsPollingsIntervals))
 
 	for url, pollingInterval := range config.UrlsPollingsIntervals {
