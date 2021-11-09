@@ -165,6 +165,6 @@ func formatStatusCodeCount(statusCodesMap map[int]int) []string {
 }
 
 // Close shuts down UI module.
-func (t *UI) Close() {
+func (*UI) Close() {
 	ui.Close()
 }
