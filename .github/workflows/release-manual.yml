@@ -1,35 +1,35 @@
 name: Release binaries (manual)
-on: 
+on:
   workflow_dispatch:
     inputs:
       goos:
-        description: 'goos'     
+        description: "goos"
         required: true
-        default: 'linux'
+        default: "linux"
       goarch:
-        description: 'goarch'     
+        description: "goarch"
         required: true
-        default: 'amd64'
+        default: "amd64"
       release_tag:
-        description: 'release_tag'     
+        description: "release_tag"
         required: true
-        default: 'v1.1'
+        default: "v1.1"
       binary_name:
-        description: 'binary_name'     
+        description: "binary_name"
         required: true
-        default: 'iseeu'
+        default: "iseeu"
 
 jobs:
   release-linux-amd64:
     name: release linux/amd64
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: wangyoucao577/go-release-action@v1.20
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: ${{ github.event.inputs.goos }}
-        goarch: ${{ github.event.inputs.goarch }}
-        release_tag: ${{ github.event.inputs.release_tag }}
-        project_path: cmd/iseeu/
-        binary_name: iseeu
+      - uses: actions/checkout@v2
+      - uses: wangyoucao577/go-release-action@v1.20
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: ${{ github.event.inputs.goos }}
+          goarch: ${{ github.event.inputs.goarch }}
+          release_tag: ${{ github.event.inputs.release_tag }}
+          project_path: cmd/iseeu/
+          binary_name: iseeu
