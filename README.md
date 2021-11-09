@@ -1,6 +1,27 @@
-# Website Monitor in Go
+# I See U
 
 A tool that helps you monitor a collection of websites using various metrics.
+
+<p align="center">
+  <img src="https://static.wikia.nocookie.net/dumbledoresarmyroleplay/images/0/09/Vigilance.gif/revision/latest?cb=20180516193632" />
+</p>
+
+> "Concealed within his fortress, the lord of Mordor sees all. His gaze pierces cloud, shadow, earth, and flesh. You know of what I speak, Gandalf: a great Eye, lidless, wreathed in flame."
+
+## Preview
+
+![Website Monitor Demo](demo.gif)
+
+## Quickstart
+
+    iseeu google.com 2 github.com 3
+
+This command starts monitoring of the websites:
+
+* `google.com` every `2sec`
+* `github.com` every `3sec`
+
+## Project Description
 
 ### Stats
 
@@ -14,18 +35,6 @@ A tool that helps you monitor a collection of websites using various metrics.
 * When availability recovers for each website.
 * We can scroll through alerts using keyboard arrows.
 
-![Website Monitor Demo](demo.gif)
-
-## Quickstart
-
-    website-monitor google.com 2 jeux.fr 1 github.com 3
-
-This command starts monitoring of the websites:
-
-* `google.com` every `2sec`
-* `jeux.fr` every `1sec`
-* `github.com` every `3sec`
-
 ## Install
 
 ### Precompiled binaries
@@ -35,26 +44,32 @@ Precompiled binaries for released versions are available in for each platform in
 ### Building from source
 
 To build Website Monitor from source code, first ensure that you have a working
-Go environment with [version 1.14 or greater installed](https://golang.org/doc/install).
+Go environment with [version 1.15 or greater installed](https://golang.org/doc/install).
 
 You can directly use the `go` tool to download and install the `website-monitor` tool into your `GOPATH`:
 
     go get -v github.com/NouamaneTazi/website-monitor
 
-## Advanced Usage
+## Usage
 
 ```bash
 $ website-monitor
-$ Usage: website-monitor [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2
+Usage: iseeu [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2
+
+Example: iseeu -crit 0.3 -sui 1s google.com 2 http://google.fr 1
 
 OPTIONS:
--lstats duration
-        Long history interval (in minutes) (default 1m0s)
--lui duration
+  -alertint WebsiteAlertInterval
+        Shows alert if website is down for WebsiteAlertInterval minutes (default 10s)
+  -crit float
+        Availability of websites below which we show an alert (default 0.8)
+  -lstats LongStatsHistoryInterval
+        Long refreshes show stats for past LongStatsHistoryInterval minutes (default 1m0s)
+  -lui duration
         Long refreshing UI interval (in seconds) (default 10s)
--sstats duration
-        Short history interval (in minutes) (default 10s)
--sui duration
+  -sstats ShortStatsHistoryInterval
+        Short refreshes show stats for past ShortStatsHistoryInterval minutes (default 10s)
+  -sui duration
         Short refreshing UI interval (in seconds) (default 2s)
 ```
 
@@ -65,10 +80,3 @@ To run tests run the command
 ```bash
 go test ./...
 ```
-
-## Improvements
-
-* Better http client configuration to make tracing more failproof.
-* Prettier widgets for stats
-* Ability to add and omit monitored URLs while the app is running
-* Ability to export logs
