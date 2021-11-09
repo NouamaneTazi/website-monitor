@@ -68,9 +68,12 @@ func parse() error {
 			pollingInterval, err := strconv.Atoi(tail[i+1])
 			if err != nil {
 				return fmt.Errorf("error converting polling interval %v to int", tail[i+1])
-
 			}
-			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
+			url, err := parseURL(tail[i])
+			if err != nil {
+				return err
+			}
+			config.UrlsPollingsIntervals[url] = time.Duration(pollingInterval) * time.Second
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "\nUsage: %s [OPTIONS] URL1 POLLING_INTERVAL1 URL2 POLLING_INTERVAL2\n\n", os.Args[0])
@@ -83,14 +86,14 @@ func parse() error {
 }
 
 // parseURL reassembles the URL into a valid URL string
-func parseURL(uri string) string {
+func parseURL(uri string) (string, error) {
 	if !strings.Contains(uri, "://") && !strings.HasPrefix(uri, "//") {
 		uri = "//" + uri
 	}
 
 	url, err := url.Parse(uri)
 	if err != nil {
-		log.Panicf("could not parse url %q: %v", uri, err)
+		return "", err
 	}
 	if url.Scheme == "" {
 		url.Scheme = "http"
@@ -99,5 +102,5 @@ func parseURL(uri string) string {
 		}
 	}
 
-	return url.String()
+	return url.String(), nil
 }
