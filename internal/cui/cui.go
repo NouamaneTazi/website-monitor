@@ -80,7 +80,7 @@ func (t *UI) Init() error {
 
 // Update updates UI widgets from UIData.
 func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
-	// Lock so only one goroutine at a time can access the map.
+	// Lock so only one reader or writer goroutines at a time can access the map.
 	for _, m := range data {
 		m.Mu.RLock()
 		defer m.Mu.RUnlock()
@@ -154,23 +154,7 @@ func (t *UI) UpdateUI(data []*metrics.Metrics, refreshInterval time.Duration) {
 
 }
 
-// updateAlerts Update alerts
-// Checks if website availability is below config.CriticalAvailability for the past config.ShortStatsHistoryInterval
-// Checks if website availability has recovered
-func (t *UI) updateAlerts(data []*metrics.Metrics) {
-	for _, stat := range data {
-		stat.Mu.Lock()
-		defer stat.Mu.Unlock()
-		if stat.Alert.WebsiteWasDown {
-			t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v is down. availability=%.2f, time=%v](fg:red)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
-		}
-		if stat.Alert.WebsiteHasRecovered {
-			t.Alerts.Rows = append(t.Alerts.Rows, fmt.Sprintf("[Website %v has recovered. availability=%.2f, time=%v](fg:green)", stat.Url, stat.Alert.Availability, time.Now().Format("2006-01-02 15:04:05")))
-		}
-	}
-	ui.Render(t.Alerts)
-}
-
+// formatStatusCodeCount format status code count in a better format
 func formatStatusCodeCount(statusCodesMap map[int]int) []string {
 	// Format status code count
 	var statusCodeCount []string
