@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -26,7 +27,10 @@ func main() {
 	flag.DurationVar(&config.WebsiteAlertInterval, "alertint", 10*time.Second,
 		"Shows alert if website is down for `WebsiteAlertInterval` minutes")
 	flag.Float64Var(&config.CriticalAvailability, "crit", 0.8, "Availability of websites below which we show an alert")
-	parse()
+	err := parse()
+	if err != nil {
+		log.Fatalln("Failed parsing command arguments: ", err)
+	}
 
 	// initiate array holding metrics. each metrics corresponds to one URL
 	// metrics are updated over time through `ListenAndProcess()` method
@@ -49,21 +53,22 @@ func main() {
 	}
 
 	// create CUI and handle keyboardBindings
-	err := cui.HandleCUI(stats)
+	err = cui.HandleCUI(stats)
 	if err != nil {
 		log.Fatalf("Failed to start CUI %v", err)
 	}
 }
 
 // parse parses urls and validates command format
-func parse() {
+func parse() error {
 	flag.Parse()
 	tail := flag.Args()
 	if len(tail) > 0 && len(tail)%2 == 0 {
 		for i := 0; i < len(tail); i += 2 {
 			pollingInterval, err := strconv.Atoi(tail[i+1])
 			if err != nil {
-				log.Fatalln("Error converting polling interval to int", err)
+				return fmt.Errorf("error converting polling interval %v to int", tail[i+1])
+
 			}
 			config.UrlsPollingsIntervals[parseURL(tail[i])] = time.Duration(pollingInterval) * time.Second
 		}
@@ -72,8 +77,9 @@ func parse() {
 		fmt.Fprintf(os.Stderr, "Example: %s -crit 0.3 -sui 1s google.com 2 http://google.fr 1\n\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "OPTIONS:")
 		flag.PrintDefaults()
-		log.Fatal("Urls must be provided with their respective polling intervals.")
+		return errors.New("urls must be provided with their respective polling intervals")
 	}
+	return nil
 }
 
 // parseURL reassembles the URL into a valid URL string
