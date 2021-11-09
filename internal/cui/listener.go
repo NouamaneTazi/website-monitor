@@ -1,8 +1,6 @@
 package cui
 
 import (
-	"log"
-	"runtime/debug"
 	"time"
 
 	"github.com/NouamaneTazi/iseeu/internal/config"
@@ -11,19 +9,11 @@ import (
 )
 
 // handleCUI creates CUI and handles keyboardBindings
-func HandleCUI(data []*metrics.Metrics) {
+func HandleCUI(data []*metrics.Metrics) error {
 	var ui UI
-	// TODO: check if this is needed
-	// handle panic
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("Recovering from panic:")
-			debug.PrintStack()
-		}
-	}()
 
 	if err := ui.Init(); err != nil {
-		log.Fatalf("Failed to start CUI %v", err)
+		return err
 	}
 	defer ui.Close()
 
@@ -45,7 +35,7 @@ func HandleCUI(data []*metrics.Metrics) {
 			switch e.ID {
 			case "q", "<C-c>":
 				// TODO: interrupt app gracefully
-				return
+				return nil
 			case "j", "<Down>":
 				ui.Alerts.ScrollDown()
 			case "k", "<Up>":

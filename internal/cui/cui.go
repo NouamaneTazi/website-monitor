@@ -23,7 +23,6 @@ type UI struct {
 
 // Init creates widgets, sets sizes and labels.
 func (t *UI) Init() error {
-
 	if err := ui.Init(); err != nil {
 		return err
 	}

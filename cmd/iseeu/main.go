@@ -49,7 +49,10 @@ func main() {
 	}
 
 	// create CUI and handle keyboardBindings
-	cui.HandleCUI(stats)
+	err := cui.HandleCUI(stats)
+	if err != nil {
+		log.Fatalf("Failed to start CUI %v", err)
+	}
 }
 
 // parse parses urls and validates command format
