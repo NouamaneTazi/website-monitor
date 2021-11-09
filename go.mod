@@ -1,4 +1,4 @@
-module github.com/NouamaneTazi/iseeu
+module github.com/NouamaneTazi/website-monitor
 
 go 1.15
 
