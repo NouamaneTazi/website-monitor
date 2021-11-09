@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/config"
-	"github.com/NouamaneTazi/iseeu/internal/inspect"
-	"github.com/NouamaneTazi/iseeu/internal/metrics"
+	"github.com/NouamaneTazi/website-monitor/internal/config"
+	"github.com/NouamaneTazi/website-monitor/internal/inspect"
+	"github.com/NouamaneTazi/website-monitor/internal/metrics"
 )
 
 func initConfig() {

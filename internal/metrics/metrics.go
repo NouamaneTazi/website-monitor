@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/config"
-	"github.com/NouamaneTazi/iseeu/internal/inspect"
+	"github.com/NouamaneTazi/website-monitor/internal/config"
+	"github.com/NouamaneTazi/website-monitor/internal/inspect"
 )
 
 // Metrics contains url trace information and aggregation of reports over a short and a long interval

@@ -3,7 +3,7 @@ package inspect
 import (
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/config"
+	"github.com/NouamaneTazi/website-monitor/internal/config"
 	"github.com/gocolly/colly/v2"
 )
 

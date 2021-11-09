@@ -3,8 +3,8 @@ package cui
 import (
 	"time"
 
-	"github.com/NouamaneTazi/iseeu/internal/config"
-	"github.com/NouamaneTazi/iseeu/internal/metrics"
+	"github.com/NouamaneTazi/website-monitor/internal/config"
+	"github.com/NouamaneTazi/website-monitor/internal/metrics"
 	"github.com/gizak/termui/v3"
 )
 
